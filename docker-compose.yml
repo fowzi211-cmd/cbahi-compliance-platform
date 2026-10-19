@@ -1,0 +1,54 @@
+# Local development services. Production uses managed equivalents in a KSA cloud region.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mustamir
+      POSTGRES_PASSWORD: mustamir
+      POSTGRES_DB: mustamir
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mustamir -d mustamir"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # S3-compatible object storage for evidence files (SeaweedFS, Apache-2.0).
+  # The app talks plain S3, so any regional object store can replace it in production.
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.05
+    command: server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
+    ports:
+      - "8333:8333"
+    volumes:
+      - seaweedfs-data:/data
+      - ./docker/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+    healthcheck:
+      # Any HTTP answer (an unauthenticated request gets 403) means the S3 API is up.
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://localhost:8333/"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Creates the private evidence bucket once storage is up.
+  seaweedfs-init:
+    image: chrislusf/seaweedfs:4.05
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "echo 's3.bucket.create -name evidence' |
+      weed shell -master=seaweedfs:9333 -filer=seaweedfs:8888"
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+volumes:
+  postgres-data:
+  seaweedfs-data:
