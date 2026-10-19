@@ -17,6 +17,7 @@ const env = {
   DATABASE_SYSTEM_URL: testUrl("DATABASE_SYSTEM_URL"),
   DATABASE_ADMIN_URL: testUrl("DATABASE_ADMIN_URL"),
   EMAIL_TRANSPORT: "memory",
+  STORAGE_DRIVER: "memory",
 };
 Object.assign(process.env, env);
 

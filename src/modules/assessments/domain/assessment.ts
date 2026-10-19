@@ -33,16 +33,24 @@ export function inScope(element: ScopeElement, departmentType: string | null | u
   return departmentType !== null && element.departmentTypes.includes(departmentType);
 }
 
-export type EvidenceInput = { kind: EvidenceKind; note: string | null; url: string | null };
-export type EvidenceProblem = "urlRequired" | "invalidUrl" | "noteRequired";
+export type EvidenceInput = {
+  kind: EvidenceKind;
+  note: string | null;
+  url: string | null;
+  // An approved version from the document library (M8).
+  documentVersionId?: string | null;
+};
+export type EvidenceProblem = "documentRequired" | "invalidUrl" | "noteRequired";
 
 /**
- * Until the document library (M8), a document is cited by link and must have one. Every
- * other kind is a note of what was seen, heard or counted, so it needs the note.
+ * A document is cited from the library (an approved version) or, for documents kept
+ * elsewhere, by a web link. Every other kind is a note of what was seen, heard or counted,
+ * so it needs the note.
  */
 export function evidenceProblem(input: EvidenceInput): EvidenceProblem | null {
   if (input.kind === "document") {
-    if (!input.url) return "urlRequired";
+    if (input.documentVersionId) return null;
+    if (!input.url) return "documentRequired";
     if (!isWebLink(input.url)) return "invalidUrl";
     return null;
   }

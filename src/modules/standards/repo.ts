@@ -496,3 +496,12 @@ export async function listScoringContent(tx: Tx, frameworkId: string) {
   ]);
   return framework ? { framework, scale, chapters, standards, elements } : null;
 }
+
+/** Every element of the editions a facility uses, in edition order. */
+export function listFacilityElements(tx: Tx, tenantId: string, facilityId: string) {
+  return tx.element.findMany({
+    where: { framework: { facilities: { some: { tenantId, facilityId } } } },
+    orderBy: [{ frameworkId: "asc" }, { sort: "asc" }],
+    select: { id: true, code: true, titleAr: true, titleEn: true, isEsr: true },
+  });
+}

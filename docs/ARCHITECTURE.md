@@ -265,6 +265,13 @@ erDiagram
   AuditEvent { bigint id  uuid tenant_id  uuid actor_user_id  string action  string entity  uuid entity_id  jsonb before  jsonb after  inet ip  timestamptz at  bytea prev_hash  bytea hash }
 ```
 
+**As built in M8** (differences from the diagram above):
+
+- `document_version.status` is `in_review | approved | rejected | superseded`; a document has no status of its own. Its state is its newest approved version (current, due for review or expired), or "retired" once `document.retired_at` is set. One version waits for review at a time, and approving one supersedes the previous approved version in the same transaction.
+- `document_version` stores `file_name`, `content_type`, `bytes`, `sha256` (32 bytes), `storage_key`, the three dates, `change_note`, `phi_attested` (CHECK true), `phi_scan` (`{ scanned, hits: [{ kind, count }] }`, never the matched text) and `phi_override`. A trigger refuses any change to the file and PHI columns, any date change once decided, and any delete. `document_approval` is append-only (trigger).
+- `Document }o--o{ Element` is the `document_element` table. `score_evidence.document_version_id` cites a version; links cited before M8 stay valid, and a link is still accepted for a document kept outside the platform.
+- **Uploads go through the server**, not straight to the bucket with a signed PUT URL as ROADMAP M8 first said: the file must be type-checked from its bytes, hashed and scanned for PHI before it is stored, so a file that fails never reaches storage. A server action takes up to 10 MB. **Downloads** use signed GET URLs (5 minutes), minted by a route only after the permission check, at the moment of the click. Objects are written with server-side encryption under `tenants/{tenantId}/facilities/{facilityId}/documents/{documentId}/{versionId}`.
+
 **Phase 2 placeholders**: tables designed, not built. `KpiDefinition` / `KpiValue` (monthly) link to elements with evidence type `kpi`. `StaffCredential` (SCFHS licence, BLS/ACLS) with expiry reminders reuses the document reminder job. `Incident`. `Crosswalk(element_a, element_b, relation)`. `SeasonalCycle` (a facility with `active_from`/`active_to` and time-bounded snapshots). The benchmarking view aggregates `ElementStatus` across tenants with k-anonymity (no result for groups smaller than 5 facilities).
 
 ## 4. Core business rules (pure functions, fully unit-tested)
@@ -300,6 +307,13 @@ erDiagram
 - _Finding severity (rule 6)._ `esr` for an ESR element; otherwise `high` when the level has no compliance (normalized 0) and `medium` for partial compliance. `low` is left for findings raised by hand.
 - _Readiness._ The dashboard evaluates the internal series per edition the facility uses, as of now; overdue CAPA counts as 0 until M9. Score validity is the default 90 days until per-tenant settings arrive.
 - _Who._ Scoring follows `assessment.score` (owner and quality manager facility-wide, department head for their own department). Anyone with `dashboard.view` for the scope can read an assessment and its findings; facility-level readiness needs facility-wide `dashboard.view`.
+
+**As built in M8** (`documents/domain/`, `documents/service.ts`):
+
+- _Document lifecycle (rule 8)._ An approved version is _current_, _due for review_ from its review date (still in force: review is a reminder), and _expired_ the day after its expiry date (a cut-off). Only a current or review-due version of a document that is not retired can be cited; an expired one is refused. Dates must run effective → review → expiry. A rejection needs a comment. Uploaders may approve their own version; the audit event records `selfApproved` so a reviewer can see it. Review and expiry reminders, and flagging linked elements when a document expires, arrive with the notification jobs (M10).
+- _Files._ The type comes from the file's bytes (PDF, Word, Excel, PNG, JPEG), not its name. The same file cannot be uploaded twice to one document (SHA-256).
+- _PHI guard (decision 10)._ Every upload needs the attestation. Text is extracted from PDF and Word files and scanned for a 10-digit national ID or Iqama number (starting 1 or 2, Arabic-Indic digits included), a medical-record or patient number after its label, and a date after a date-of-birth label. A match stops the upload until the uploader confirms the file holds no patient data; the confirmation is audited (`phi_override`, kinds and counts only). Images and spreadsheets are not scanned; the attestation covers them.
+- _Who._ `document.upload` and `document.approve` per the matrix in §6; linking follows upload, retiring follows approve. Every member of the facility can read its documents and download them.
 
 ## 5. Multi-tenancy and isolation
 

@@ -17,6 +17,7 @@ export const envSchema = z.object({
   S3_BUCKET: z.string().min(1),
   S3_ACCESS_KEY_ID: z.string().min(1),
   S3_SECRET_ACCESS_KEY: z.string().min(1),
+  STORAGE_DRIVER: z.enum(["s3", "memory"]).default("s3"),
   SMTP_HOST: z.string().min(1),
   SMTP_PORT: z.coerce.number().int().positive(),
   SMTP_FROM: z.string().min(1),

@@ -699,6 +699,23 @@ export async function getScoringContent(
 }
 export type ScoringContent = NonNullable<Awaited<ReturnType<typeof getScoringContent>>>;
 
+/** The elements of every edition the facility uses, for pickers (e.g. linking a document). */
+export async function listFacilityElements(ctx: AccessContext, facilityId: string) {
+  if (!(await getFacility(ctx, facilityId))) return [];
+  return withTenant(ctx, (tx) => repo.listFacilityElements(tx, ctx.tenantId, facilityId));
+}
+
+/** One element, only if it belongs to an edition the facility uses. */
+export async function getFacilityElement(
+  ctx: AccessContext,
+  facilityId: string,
+  elementId: string,
+) {
+  if (!z.uuid().safeParse(elementId).success) return null;
+  if (!(await getFacility(ctx, facilityId))) return null;
+  return withTenant(ctx, (tx) => repo.findFacilityElement(tx, ctx.tenantId, facilityId, elementId));
+}
+
 // --- Seeding ------------------------------------------------------------------------------------
 
 /**

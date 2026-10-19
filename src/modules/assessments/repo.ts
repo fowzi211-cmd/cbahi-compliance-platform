@@ -82,7 +82,20 @@ export function listScores(tx: Tx, tenantId: string, assessmentId: string) {
       level: { select: { code: true } },
       evidence: {
         orderBy: { createdAt: "asc" },
-        select: { id: true, kind: true, note: true, url: true, createdAt: true },
+        select: {
+          id: true,
+          kind: true,
+          note: true,
+          url: true,
+          createdAt: true,
+          documentVersion: {
+            select: {
+              id: true,
+              version: true,
+              document: { select: { id: true, titleAr: true, titleEn: true } },
+            },
+          },
+        },
       },
     },
   });
@@ -129,6 +142,7 @@ export function insertEvidence(
     kind: EvidenceKind;
     note: string | null;
     url: string | null;
+    documentVersionId: string | null;
     createdBy: string;
   },
 ) {

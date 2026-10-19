@@ -36,7 +36,7 @@ export const navItems: NavItem[] = [
   { key: "assessments", href: "/assessments", icon: ClipboardCheck },
   { key: "tracers", href: "/tracers", icon: Route, milestone: "M11" },
   { key: "findings", href: "/findings", icon: ListChecks, milestone: "M9" },
-  { key: "documents", href: "/documents", icon: FileText, milestone: "M8" },
+  { key: "documents", href: "/documents", icon: FileText },
   { key: "committees", href: "/committees", icon: Users, milestone: "M12" },
   { key: "people", href: "/people", icon: UserCog },
   { key: "settings", href: "/settings", icon: Settings },

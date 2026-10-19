@@ -44,6 +44,10 @@ model Tenant {
   scoreEvidence        ScoreEvidence[]
   elementStatuses      ElementStatus[]
   findings             Finding[]
+  documents            Document[]
+  documentVersions     DocumentVersion[]
+  documentApprovals    DocumentApproval[]
+  documentElements     DocumentElement[]
 
   @@map("tenant")
 }
@@ -92,6 +96,7 @@ model Facility {
   assessments   Assessment[]
   statuses      ElementStatus[]
   findings      Finding[]
+  documents     Document[]
 
   @@unique([tenantId, id])
   @@index([tenantId])
@@ -117,6 +122,7 @@ model Department {
   memberships Membership[]
   invitations Invitation[]
   assessments Assessment[]
+  documents   Document[]
 
   @@unique([tenantId, id])
   @@index([tenantId, facilityId])
@@ -423,6 +429,7 @@ model Element {
   scores        ElementScore[]
   statuses      ElementStatus[]
   findings      Finding[]
+  documents     DocumentElement[]
 
   @@unique([frameworkId, code])
   @@index([standardId])
@@ -632,17 +639,20 @@ enum EvidenceKind {
 // What backs a score. Until the document library (M8) a "document" is a link; the other
 // kinds are notes of what was seen, heard or counted. Never patient-identifiable.
 model ScoreEvidence {
-  id             String       @id @default(uuid(7)) @db.Uuid
-  tenantId       String       @map("tenant_id") @db.Uuid
-  elementScoreId String       @map("element_score_id") @db.Uuid
-  kind           EvidenceKind
-  note           String?
-  url            String?
-  createdBy      String?      @map("created_by") @db.Uuid
-  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                String       @id @default(uuid(7)) @db.Uuid
+  tenantId          String       @map("tenant_id") @db.Uuid
+  elementScoreId    String       @map("element_score_id") @db.Uuid
+  kind              EvidenceKind
+  note              String?
+  url               String?
+  // An approved version from the document library (M8); `url` stays for links cited before.
+  documentVersionId String?      @map("document_version_id") @db.Uuid
+  createdBy         String?      @map("created_by") @db.Uuid
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  elementScore ElementScore @relation(fields: [tenantId, elementScoreId], references: [tenantId, id], onDelete: Cascade)
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  elementScore    ElementScore     @relation(fields: [tenantId, elementScoreId], references: [tenantId, id], onDelete: Cascade)
+  documentVersion DocumentVersion? @relation(fields: [tenantId, documentVersionId], references: [tenantId, id], onDelete: Restrict)
 
   @@index([tenantId, elementScoreId])
   @@map("score_evidence")
@@ -712,4 +722,124 @@ model Finding {
   @@unique([tenantId, elementScoreId])
   @@index([tenantId, facilityId, status])
   @@map("finding")
+}
+
+// ---------------------------------------------------------------------------
+// Document control (M8). Tenant-owned: tenant_id, composite foreign keys and RLS. A
+// version's file never changes once uploaded (trigger): a new file is a new version.
+// ---------------------------------------------------------------------------
+
+enum DocumentType {
+  policy
+  procedure
+  form
+  plan
+  other
+}
+
+enum DocumentVersionStatus {
+  in_review
+  approved
+  rejected
+  superseded
+}
+
+enum ApprovalDecision {
+  approved
+  rejected
+}
+
+model Document {
+  id           String       @id @default(uuid(7)) @db.Uuid
+  tenantId     String       @map("tenant_id") @db.Uuid
+  facilityId   String       @map("facility_id") @db.Uuid
+  // The department that owns the document; null for facility-wide documents.
+  departmentId String?      @map("department_id") @db.Uuid
+  type         DocumentType
+  titleAr      String?      @map("title_ar")
+  titleEn      String?      @map("title_en")
+  ownerUserId  String?      @map("owner_user_id") @db.Uuid
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  retiredAt    DateTime?    @map("retired_at") @db.Timestamptz(6)
+
+  tenant     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facility   Facility          @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  department Department?       @relation(fields: [tenantId, departmentId], references: [tenantId, id], onDelete: Restrict)
+  versions   DocumentVersion[]
+  elements   DocumentElement[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, facilityId])
+  @@map("document")
+}
+
+model DocumentVersion {
+  id          String                @id @default(uuid(7)) @db.Uuid
+  tenantId    String                @map("tenant_id") @db.Uuid
+  documentId  String                @map("document_id") @db.Uuid
+  version     Int
+  status      DocumentVersionStatus @default(in_review)
+  fileName    String                @map("file_name")
+  contentType String                @map("content_type")
+  bytes       Int
+  sha256      Bytes
+  storageKey  String                @map("storage_key")
+  effectiveOn DateTime?             @map("effective_on") @db.Date
+  reviewOn    DateTime?             @map("review_on") @db.Date
+  expiresOn   DateTime?             @map("expires_on") @db.Date
+  changeNote  String?               @map("change_note")
+  // The uploader confirmed the file holds no patient data (always true: it is required).
+  phiAttested Boolean               @map("phi_attested")
+  // What the scan found, as counts per kind ({ scanned, hits: [{ kind, count }] }), never
+  // the matched text.
+  phiScan     Json                  @map("phi_scan")
+  // The scan found something and the uploader confirmed it is redacted or not patient data.
+  phiOverride Boolean               @default(false) @map("phi_override")
+  uploadedBy  String?               @map("uploaded_by") @db.Uuid
+  uploadedAt  DateTime              @default(now()) @map("uploaded_at") @db.Timestamptz(6)
+
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document  Document           @relation(fields: [tenantId, documentId], references: [tenantId, id], onDelete: Cascade)
+  approvals DocumentApproval[]
+  evidence  ScoreEvidence[]
+
+  @@unique([documentId, version])
+  @@unique([tenantId, id])
+  @@index([tenantId, documentId])
+  @@map("document_version")
+}
+
+model DocumentApproval {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  tenantId       String           @map("tenant_id") @db.Uuid
+  versionId      String           @map("version_id") @db.Uuid
+  approverUserId String?          @map("approver_user_id") @db.Uuid
+  decision       ApprovalDecision
+  comment        String?
+  decidedAt      DateTime         @default(now()) @map("decided_at") @db.Timestamptz(6)
+
+  tenant  Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  version DocumentVersion @relation(fields: [tenantId, versionId], references: [tenantId, id], onDelete: Cascade)
+
+  @@index([tenantId, versionId])
+  @@map("document_approval")
+}
+
+// A document the facility relies on for an element ("this policy covers DEMO-MED.1.2").
+model DocumentElement {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  documentId String   @map("document_id") @db.Uuid
+  elementId  String   @map("element_id") @db.Uuid
+  createdBy  String?  @map("created_by") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [tenantId, documentId], references: [tenantId, id], onDelete: Cascade)
+  element  Element  @relation(fields: [elementId], references: [id], onDelete: Restrict)
+
+  @@unique([documentId, elementId])
+  @@index([tenantId, elementId])
+  @@map("document_element")
 }

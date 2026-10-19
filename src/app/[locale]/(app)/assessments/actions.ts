@@ -54,6 +54,7 @@ export async function saveScoreAction(_: FormState, form: FormData): Promise<For
             kind: kind as EvidenceKind,
             note: text(form, "evidenceNote"),
             url: text(form, "evidenceUrl"),
+            documentVersionId: text(form, "documentVersionId"),
           }
         : null,
     });
