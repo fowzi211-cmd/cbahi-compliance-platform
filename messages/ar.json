@@ -185,5 +185,223 @@
       "expiry": "الرابط صالح لمدة 7 أيام.",
       "ignore": "إذا لم تكن تتوقع هذه الرسالة فيمكنك تجاهلها."
     }
+  },
+  "standards": {
+    "translationMissing": "الترجمة غير متوفرة",
+    "library": {
+      "intro": "أطر الاعتماد المتاحة لمنشأتك. افتح أي إطار لتصفحه حسب الفصل أو القسم. تظهر متطلبات السلامة الأساسية (ESR) أولًا.",
+      "empty": "لا يوجد إطار متاح بعد. ينشر فريق المنصة الأطر بعد التأكد من ترخيصها.",
+      "edition": "الإصدار {edition}",
+      "chapters": "الفصول",
+      "elements": "العناصر",
+      "esr": "ESR"
+    },
+    "browse": {
+      "back": "جميع الأطر",
+      "filters": "تصفية العناصر",
+      "chapters": "الفصول",
+      "chapter": "الفصل",
+      "allChapters": "جميع الفصول",
+      "department": "القسم",
+      "allDepartments": "جميع الأقسام",
+      "search": "ابحث بالرمز أو النص",
+      "esrOnly": "عناصر ESR فقط",
+      "apply": "تطبيق",
+      "reset": "مسح التصفية",
+      "chapterCounts": "{elements} · ESR {esr}",
+      "results": "{count, plural, zero {لا توجد عناصر مطابقة لهذه التصفية.} one {عنصر واحد} two {عنصران} few {# عناصر} many {# عنصرًا} other {# عنصر}}",
+      "license": "الترخيص: {note}"
+    },
+    "esr": {
+      "title": "متطلبات السلامة الأساسية (ESR)",
+      "hint": "إذا لم يُستوفَ أي عنصر من عناصر ESR فالمنشأة غير جاهزة للمسح، مهما كانت نتيجتها الإجمالية.",
+      "badge": "ESR"
+    },
+    "element": {
+      "description": "الوصف",
+      "evidence": "طريقة التحقق",
+      "departments": "الأقسام",
+      "facilityWide": "على مستوى المنشأة",
+      "weight": "الوزن",
+      "notSpecified": "غير محدد"
+    },
+    "evidenceTypes": {
+      "document": "مستند",
+      "observation": "ملاحظة ميدانية",
+      "interview": "مقابلة الموظفين",
+      "record_review": "مراجعة السجلات",
+      "kpi": "مؤشر أداء"
+    },
+    "programs": {
+      "ambulatory": "الرعاية الإسعافية",
+      "primary": "الرعاية الصحية الأولية",
+      "lab": "المختبرات",
+      "blood_bank": "بنوك الدم",
+      "dental": "طب الأسنان",
+      "home_health": "الرعاية الصحية المنزلية",
+      "hospital": "المستشفيات"
+    },
+    "status": {
+      "draft": "مسودة",
+      "active": "منشور",
+      "retired": "متقاعد"
+    }
+  },
+  "platform": {
+    "title": "إدارة المنصة",
+    "standards": {
+      "title": "مكتبة المعايير",
+      "intro": "استورد إصدارات الأطر وراجعها ثم انشرها لجميع المنشآت. لا يُنشر إلا نص مرخَّص.",
+      "back": "مكتبة المعايير",
+      "upload": {
+        "title": "استيراد إصدار إطار",
+        "file": "الملف",
+        "fileHint": "ملف CSV أو XLSX أو JSON بصيغة الاستيراد في مستمر (docs/IMPORT_FORMAT.md)، بحجم أقصى 5 ميغابايت.",
+        "csvTitle": "بيانات الإطار لملف CSV",
+        "csvHint": "يحتوي ملف CSV على العناصر فقط، لذا أدخل بيانات الإطار هنا. أما ملفات XLSX و JSON فتحمل هذه البيانات بداخلها، وتُتجاهل هذه الحقول.",
+        "code": "رمز الإطار",
+        "edition": "الإصدار",
+        "nameAr": "الاسم بالعربية",
+        "nameEn": "الاسم بالإنجليزية",
+        "program": "البرنامج",
+        "programNone": "اختر البرنامج",
+        "submit": "فحص ومعاينة",
+        "checking": "جارٍ فحص الملف…"
+      },
+      "issues": {
+        "failed": "{count, plural, zero {لا توجد أخطاء في الملف.} one {في الملف خطأ واحد.} two {في الملف خطآن.} few {في الملف # أخطاء.} many {في الملف # خطأً.} other {في الملف # خطأ.}} لم يُحفظ شيء: صحّح الملف ثم ارفعه مرة أخرى.",
+        "row": "الصف {row}",
+        "more": "{count, plural, zero {} one {ومشكلة أخرى} two {ومشكلتان أخريان} few {و# مشكلات أخرى} many {و# مشكلة أخرى} other {و# مشكلة أخرى}}",
+        "codes": {
+          "emptyFile": "الملف فارغ.",
+          "unreadableFile": "تعذّرت قراءة الملف. تأكد من أنه مصنّف XLSX صالح.",
+          "fileTooLarge": "حجم الملف أكبر من 5 ميغابايت.",
+          "unsupportedFormat": "استخدم ملفًا بامتداد ‎.csv أو ‎.xlsx أو ‎.json.",
+          "invalidEncoding": "ملف CSV ليس بترميز UTF-8. احفظه من Excel بصيغة «CSV UTF-8».",
+          "invalidJson": "ملف JSON غير صالح أو لا يتبع صيغة الاستيراد.",
+          "unknownFormatVersion": "إصدار الصيغة «{value}» غير معروف.",
+          "csvUnclosedQuote": "هناك قيمة بين علامتي تنصيص لم تُغلق.",
+          "missingSheet": "الورقة «{sheet}» غير موجودة.",
+          "missingColumn": "العمود المطلوب «{column}» غير موجود.",
+          "unknownColumn": "العمود «{column}» ليس من الصيغة وتم تجاهله.",
+          "frameworkRowCount": "يجب أن تحتوي ورقة الإطار على صف واحد فقط (فيها {value}).",
+          "tooManyElements": "يحتوي الملف على أكثر من {value} عنصر.",
+          "noElements": "لا يحتوي الملف على أي عنصر.",
+          "editionExists": "{value} موجود مسبقًا. أعطِ هذا الملف إصدارًا جديدًا.",
+          "required": "هذه القيمة مطلوبة.",
+          "invalidCode": "«{value}» ليس رمزًا صالحًا. استخدم الحروف والأرقام والنقطة والشرطة، ورموز الأطر بأحرف لاتينية كبيرة.",
+          "invalidEdition": "«{value}» ليس إصدارًا صالحًا.",
+          "tooLong": "النص أطول من {value} حرف.",
+          "invalidNumber": "«{value}» ليس رقمًا.",
+          "weightNotPositive": "يجب أن يكون الوزن أكبر من صفر.",
+          "valueOutOfRange": "يجب أن تكون القيمة بين 0 و 1.",
+          "invalidBoolean": "«{value}» ليست نعم أو لا.",
+          "invalidProgram": "«{value}» ليس برنامجًا معروفًا.",
+          "invalidEvidenceType": "«{value}» ليس نوع دليل معروفًا.",
+          "unknownFacilityType": "«{value}» ليس نوع منشأة معروفًا.",
+          "unknownDepartmentType": "«{value}» ليس نوع قسم معروفًا.",
+          "invalidRollupConfig": "إعدادات تجميع النتائج غير صالحة.",
+          "titleMissing": "أدخل عنوانًا بالعربية أو الإنجليزية.",
+          "translationMissing": "الترجمة غير متوفرة، وسيرى القرّاء اللغة الأخرى.",
+          "duplicateCode": "الرمز «{value}» مستخدم أكثر من مرة.",
+          "unknownChapter": "لا يوجد فصل بالرمز «{value}».",
+          "unknownStandard": "لا يوجد معيار بالرمز «{value}».",
+          "conflictingDefinition": "«{value}» موصوف بشكل مختلف في صف سابق.",
+          "emptyChapter": "الفصل «{value}» لا يحتوي على معايير.",
+          "emptyStandard": "المعيار «{value}» لا يحتوي على عناصر.",
+          "scaleTooSmall": "يحتاج سلم التقييم إلى مستويين على الأقل.",
+          "esrLevelNotInScale": "مستوى ESR «{value}» غير موجود في سلم التقييم.",
+          "esrMissingNotMet": "يجب أن يكون ممكنًا ألا تُستوفى عناصر ESR: اسمح بمستوى أقل من 1 مثل NM."
+        }
+      },
+      "pending": {
+        "title": "عمليات استيراد بانتظار المراجعة",
+        "empty": "لا توجد عملية استيراد بانتظار المراجعة.",
+        "open": "مراجعة"
+      },
+      "editions": {
+        "title": "الإصدارات",
+        "empty": "لم يُستورد أي إصدار بعد. شغّل pnpm db:seed لتحميل الإطار التجريبي.",
+        "framework": "الإطار",
+        "edition": "الإصدار",
+        "status": "الحالة",
+        "elements": "العناصر",
+        "esr": "ESR"
+      },
+      "preview": {
+        "title": "معاينة الاستيراد",
+        "heading": "معاينة: {name}",
+        "contents": "المحتوى",
+        "counts": {
+          "chapters": "الفصول",
+          "standards": "المعايير",
+          "elements": "العناصر",
+          "esr": "عناصر ESR",
+          "scaleLevels": "مستويات التقييم"
+        },
+        "warnings": "تنبيهات",
+        "warningsHint": "التنبيهات لا تمنع الاستيراد. تأكد من أنها متوقعة.",
+        "commit": "إنشاء إصدار مسودة",
+        "discard": "تجاهل",
+        "committed": "تحوّل هذا الاستيراد إلى إصدار مسودة.",
+        "discarded": "تم تجاهل هذا الاستيراد.",
+        "openEdition": "فتح الإصدار"
+      },
+      "diff": {
+        "titleCompared": "التغييرات مقارنة بالإصدار {edition}",
+        "titleFirst": "أول إصدار لهذا الإطار: كل المحتوى جديد",
+        "esrAdded": "{count, plural, zero {} one {عنصر واحد أصبح ESR} two {عنصران أصبحا ESR} few {# عناصر أصبحت ESR} many {# عنصرًا أصبحت ESR} other {# عنصر أصبحت ESR}}",
+        "esrRemoved": "{count, plural, zero {} one {عنصر واحد لم يعد ESR} two {عنصران لم يعودا ESR} few {# عناصر لم تعد ESR} many {# عنصرًا لم تعد ESR} other {# عنصر لم تعد ESR}}",
+        "elementsAdded": "{count, plural, zero {} one {عنصر جديد} two {عنصران جديدان} few {# عناصر جديدة} many {# عنصرًا جديدًا} other {# عنصر جديد}}",
+        "elementsRemoved": "{count, plural, zero {} one {حُذف عنصر واحد} two {حُذف عنصران} few {حُذفت # عناصر} many {حُذف # عنصرًا} other {حُذف # عنصر}}",
+        "elementsChanged": "{count, plural, zero {} one {تغيّر عنصر واحد} two {تغيّر عنصران} few {تغيّرت # عناصر} many {تغيّر # عنصرًا} other {تغيّر # عنصر}}",
+        "chaptersAdded": "{count, plural, zero {} one {فصل جديد} two {فصلان جديدان} few {# فصول جديدة} many {# فصلًا جديدًا} other {# فصل جديد}}",
+        "chaptersRemoved": "{count, plural, zero {} one {حُذف فصل واحد} two {حُذف فصلان} few {حُذفت # فصول} many {حُذف # فصلًا} other {حُذف # فصل}}",
+        "chaptersChanged": "{count, plural, zero {} one {تغيّر عنوان فصل واحد} two {تغيّر عنوانا فصلين} few {تغيّرت عناوين # فصول} many {تغيّرت عناوين # فصلًا} other {تغيّرت عناوين # فصل}}",
+        "standardsAdded": "{count, plural, zero {} one {معيار جديد} two {معياران جديدان} few {# معايير جديدة} many {# معيارًا جديدًا} other {# معيار جديد}}",
+        "standardsRemoved": "{count, plural, zero {} one {حُذف معيار واحد} two {حُذف معياران} few {حُذفت # معايير} many {حُذف # معيارًا} other {حُذف # معيار}}",
+        "standardsChanged": "{count, plural, zero {} one {تغيّر معيار واحد} two {تغيّر معياران} few {تغيّرت # معايير} many {تغيّر # معيارًا} other {تغيّر # معيار}}",
+        "unchanged": "{count, plural, zero {لا يوجد عنصر دون تغيير.} one {عنصر واحد دون تغيير.} two {عنصران دون تغيير.} few {# عناصر دون تغيير.} many {# عنصرًا دون تغيير.} other {# عنصر دون تغيير.}}",
+        "more": "{count, plural, zero {} one {وعنصر آخر} two {وعنصران آخران} few {و# أخرى} many {و# أخرى} other {و# أخرى}}",
+        "fields": {
+          "standardCode": "المعيار",
+          "titleAr": "العنوان العربي",
+          "titleEn": "العنوان الإنجليزي",
+          "descriptionAr": "الوصف العربي",
+          "descriptionEn": "الوصف الإنجليزي",
+          "isEsr": "ESR",
+          "weight": "الوزن",
+          "evidenceTypes": "الأدلة",
+          "facilityTypes": "أنواع المنشآت",
+          "departmentTypes": "الأقسام"
+        }
+      },
+      "edition": {
+        "title": "إصدار الإطار",
+        "activatedOn": "منشور منذ {date}",
+        "retiredOn": "تقاعد في {date}",
+        "license": "الترخيص",
+        "licenseLabel": "ملاحظة الترخيص",
+        "licenseHint": "من رخّص هذا النص للمنصة وبأي شروط. مطلوبة قبل نشر الإصدار.",
+        "saveLicense": "حفظ ملاحظة الترخيص",
+        "lifecycle": "النشر",
+        "draftHint": "لا تستطيع المنشآت رؤية المسودة. نشرها يجعلها متاحة لجميع المنشآت ويُقاعد الإصدار المنشور حاليًا.",
+        "activeHint": "هذا الإصدار منشور. إحالته إلى التقاعد تزيله من المكتبة، وتحتفظ التقييمات السابقة بنصه.",
+        "activate": "نشر الإصدار",
+        "delete": "حذف المسودة",
+        "retire": "إحالة الإصدار إلى التقاعد",
+        "content": "المحتوى"
+      },
+      "errors": {
+        "invalid": "توجد قيمة غير صالحة في النموذج.",
+        "forbidden": "ليست لديك صلاحية لهذا الإجراء.",
+        "notFound": "هذا الإصدار لم يعد موجودًا.",
+        "notDraft": "هذا الإجراء متاح للمسودات فقط.",
+        "notActive": "لا يُحال إلى التقاعد إلا إصدار منشور.",
+        "licenseRequired": "أضف ملاحظة الترخيص قبل النشر. ويجب أن يحتفظ الإصدار المنشور بها.",
+        "importNotPending": "تم اعتماد هذا الاستيراد أو تجاهله مسبقًا.",
+        "editionExists": "هذا الإصدار موجود مسبقًا."
+      }
+    }
   }
 }

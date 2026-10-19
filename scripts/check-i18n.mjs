@@ -13,9 +13,10 @@ function flatten(object, prefix = "", out = new Map()) {
   return out;
 }
 
+// An argument is `{name}` or `{name, plural, ...}`. Plural branch text such as `{# items}` is
+// not an argument, and Arabic has more branches than English, so branches are not compared.
 const placeholders = (text) =>
-  [...text.matchAll(/\{\s*([A-Za-z_][\w]*)/g)]
-    .map((match) => match[1])
+  [...new Set([...text.matchAll(/\{\s*([A-Za-z_]\w*)\s*[,}]/g)].map((match) => match[1]))]
     .sort()
     .join(",");
 

@@ -1,4 +1,5 @@
 import { cookies, headers } from "next/headers";
+import { notFound } from "next/navigation";
 import { cache } from "react";
 import { redirect } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
@@ -97,4 +98,15 @@ export const requireAppContext = cache(async (locale: Locale): Promise<AppContex
       },
     },
   };
+});
+
+/**
+ * The platform admin, for the /platform pages. Anyone else gets a plain 404, so the pages do
+ * not reveal that they exist. MFA is required for this role (ARCHITECTURE §6).
+ */
+export const requirePlatformAdmin = cache(async (locale: Locale): Promise<UserProfile> => {
+  const user = await requireUser(locale);
+  if (!user.isPlatformAdmin) notFound();
+  if (!user.twoFactorEnabled) return redirect({ href: "/mfa", locale });
+  return user;
 });

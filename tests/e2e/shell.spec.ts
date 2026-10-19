@@ -83,7 +83,7 @@ test.describe("signed in", () => {
         "aria-current",
         "page",
       );
-      await expect(page.getByText("تتوفر هذه الوحدة في المرحلة M4.")).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("مكتبة المعايير");
     });
   });
 

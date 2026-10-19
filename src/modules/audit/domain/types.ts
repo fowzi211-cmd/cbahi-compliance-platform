@@ -8,7 +8,9 @@ export type AuditAction =
   | "login"
   | "lock"
   | "revoke"
-  | "accept";
+  | "accept"
+  | "activate"
+  | "retire";
 
 export type AuditEventInput = {
   action: AuditAction;

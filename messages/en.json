@@ -185,5 +185,223 @@
       "expiry": "The link works for 7 days.",
       "ignore": "If you were not expecting this email, you can ignore it."
     }
+  },
+  "standards": {
+    "translationMissing": "Translation missing",
+    "library": {
+      "intro": "The accreditation frameworks available to your facility. Open one to browse it by chapter or department. Essential safety requirements (ESR) are listed first.",
+      "empty": "No framework is available yet. The platform team publishes frameworks once their licence is confirmed.",
+      "edition": "Edition {edition}",
+      "chapters": "Chapters",
+      "elements": "Elements",
+      "esr": "ESR"
+    },
+    "browse": {
+      "back": "All frameworks",
+      "filters": "Filter elements",
+      "chapters": "Chapters",
+      "chapter": "Chapter",
+      "allChapters": "All chapters",
+      "department": "Department",
+      "allDepartments": "All departments",
+      "search": "Search code or text",
+      "esrOnly": "ESR elements only",
+      "apply": "Apply",
+      "reset": "Clear filters",
+      "chapterCounts": "{elements} · ESR {esr}",
+      "results": "{count, plural, =0 {No elements match these filters.} one {# element} other {# elements}}",
+      "license": "Licence: {note}"
+    },
+    "esr": {
+      "title": "Essential safety requirements (ESR)",
+      "hint": "If any ESR element is not met, the facility is not ready for survey, whatever its overall score.",
+      "badge": "ESR"
+    },
+    "element": {
+      "description": "Description",
+      "evidence": "How it is verified",
+      "departments": "Departments",
+      "facilityWide": "Facility-wide",
+      "weight": "Weight",
+      "notSpecified": "Not specified"
+    },
+    "evidenceTypes": {
+      "document": "Document",
+      "observation": "Observation",
+      "interview": "Staff interview",
+      "record_review": "Record review",
+      "kpi": "Indicator (KPI)"
+    },
+    "programs": {
+      "ambulatory": "Ambulatory care",
+      "primary": "Primary healthcare",
+      "lab": "Laboratory",
+      "blood_bank": "Blood bank",
+      "dental": "Dental",
+      "home_health": "Home healthcare",
+      "hospital": "Hospital"
+    },
+    "status": {
+      "draft": "Draft",
+      "active": "Live",
+      "retired": "Retired"
+    }
+  },
+  "platform": {
+    "title": "Platform administration",
+    "standards": {
+      "title": "Standards library",
+      "intro": "Import framework editions, check them, and put them live for every facility. Only licensed text may be activated.",
+      "back": "Standards library",
+      "upload": {
+        "title": "Import a framework edition",
+        "file": "File",
+        "fileHint": "CSV, XLSX or JSON in the Mustamir import format (docs/IMPORT_FORMAT.md), up to 5 MB.",
+        "csvTitle": "Framework details for a CSV file",
+        "csvHint": "A CSV file holds only the elements, so give the framework details here. XLSX and JSON files carry them in the file, and these fields are ignored.",
+        "code": "Framework code",
+        "edition": "Edition",
+        "nameAr": "Name in Arabic",
+        "nameEn": "Name in English",
+        "program": "Programme",
+        "programNone": "Choose a programme",
+        "submit": "Check and preview",
+        "checking": "Checking the file…"
+      },
+      "issues": {
+        "failed": "{count, plural, one {The file has # error.} other {The file has # errors.}} Nothing was saved: fix the file and upload it again.",
+        "row": "row {row}",
+        "more": "{count, plural, one {and # more problem} other {and # more problems}}",
+        "codes": {
+          "emptyFile": "The file is empty.",
+          "unreadableFile": "The file could not be read. Check that it is a valid XLSX workbook.",
+          "fileTooLarge": "The file is larger than 5 MB.",
+          "unsupportedFormat": "Use a .csv, .xlsx or .json file.",
+          "invalidEncoding": "The CSV file is not UTF-8. In Excel, save it as “CSV UTF-8”.",
+          "invalidJson": "The JSON is not valid or does not follow the import format.",
+          "unknownFormatVersion": "Unknown format version “{value}”.",
+          "csvUnclosedQuote": "A quoted value is never closed.",
+          "missingSheet": "The “{sheet}” sheet is missing.",
+          "missingColumn": "The required column “{column}” is missing.",
+          "unknownColumn": "The column “{column}” is not part of the format and was ignored.",
+          "frameworkRowCount": "The framework sheet must have exactly one row (it has {value}).",
+          "tooManyElements": "The file has more than {value} elements.",
+          "noElements": "The file has no elements.",
+          "editionExists": "{value} already exists. Give this file a new edition.",
+          "required": "This value is required.",
+          "invalidCode": "“{value}” is not a valid code. Use letters, digits, dots and dashes; framework codes are in capitals.",
+          "invalidEdition": "“{value}” is not a valid edition.",
+          "tooLong": "The text is longer than {value} characters.",
+          "invalidNumber": "“{value}” is not a number.",
+          "weightNotPositive": "The weight must be more than zero.",
+          "valueOutOfRange": "The value must be between 0 and 1.",
+          "invalidBoolean": "“{value}” is not yes or no.",
+          "invalidProgram": "“{value}” is not a known programme.",
+          "invalidEvidenceType": "“{value}” is not a known evidence type.",
+          "unknownFacilityType": "“{value}” is not a known facility type.",
+          "unknownDepartmentType": "“{value}” is not a known department type.",
+          "invalidRollupConfig": "The roll-up configuration is not valid.",
+          "titleMissing": "Give a title in Arabic or English.",
+          "translationMissing": "The translation is missing; readers will see the other language.",
+          "duplicateCode": "The code “{value}” is used more than once.",
+          "unknownChapter": "There is no chapter with the code “{value}”.",
+          "unknownStandard": "There is no standard with the code “{value}”.",
+          "conflictingDefinition": "“{value}” is described differently on an earlier row.",
+          "emptyChapter": "The chapter “{value}” has no standards.",
+          "emptyStandard": "The standard “{value}” has no elements.",
+          "scaleTooSmall": "The scoring scale needs at least two levels.",
+          "esrLevelNotInScale": "The ESR level “{value}” is not in the scoring scale.",
+          "esrMissingNotMet": "ESR elements must be able to fail: allow a level below 1, such as NM."
+        }
+      },
+      "pending": {
+        "title": "Imports waiting for review",
+        "empty": "No import is waiting.",
+        "open": "Review"
+      },
+      "editions": {
+        "title": "Editions",
+        "empty": "No edition has been imported yet. Run pnpm db:seed for the demo framework.",
+        "framework": "Framework",
+        "edition": "Edition",
+        "status": "Status",
+        "elements": "Elements",
+        "esr": "ESR"
+      },
+      "preview": {
+        "title": "Import preview",
+        "heading": "Preview: {name}",
+        "contents": "Contents",
+        "counts": {
+          "chapters": "Chapters",
+          "standards": "Standards",
+          "elements": "Elements",
+          "esr": "ESR elements",
+          "scaleLevels": "Scale levels"
+        },
+        "warnings": "Warnings",
+        "warningsHint": "Warnings do not block the import. Check that they are expected.",
+        "commit": "Create draft edition",
+        "discard": "Discard",
+        "committed": "This import has been turned into a draft edition.",
+        "discarded": "This import was discarded.",
+        "openEdition": "Open the edition"
+      },
+      "diff": {
+        "titleCompared": "Changes compared with edition {edition}",
+        "titleFirst": "First edition of this framework: everything is new",
+        "esrAdded": "{count, plural, one {# element becomes ESR} other {# elements become ESR}}",
+        "esrRemoved": "{count, plural, one {# element is no longer ESR} other {# elements are no longer ESR}}",
+        "elementsAdded": "{count, plural, one {# new element} other {# new elements}}",
+        "elementsRemoved": "{count, plural, one {# element removed} other {# elements removed}}",
+        "elementsChanged": "{count, plural, one {# element changed} other {# elements changed}}",
+        "chaptersAdded": "{count, plural, one {# new chapter} other {# new chapters}}",
+        "chaptersRemoved": "{count, plural, one {# chapter removed} other {# chapters removed}}",
+        "chaptersChanged": "{count, plural, one {# chapter renamed} other {# chapters renamed}}",
+        "standardsAdded": "{count, plural, one {# new standard} other {# new standards}}",
+        "standardsRemoved": "{count, plural, one {# standard removed} other {# standards removed}}",
+        "standardsChanged": "{count, plural, one {# standard changed} other {# standards changed}}",
+        "unchanged": "{count, plural, =0 {No element is unchanged.} one {# element is unchanged.} other {# elements are unchanged.}}",
+        "more": "{count, plural, other {and # more}}",
+        "fields": {
+          "standardCode": "standard",
+          "titleAr": "Arabic title",
+          "titleEn": "English title",
+          "descriptionAr": "Arabic description",
+          "descriptionEn": "English description",
+          "isEsr": "ESR",
+          "weight": "weight",
+          "evidenceTypes": "evidence",
+          "facilityTypes": "facility types",
+          "departmentTypes": "departments"
+        }
+      },
+      "edition": {
+        "title": "Framework edition",
+        "activatedOn": "live since {date}",
+        "retiredOn": "retired on {date}",
+        "license": "Licence",
+        "licenseLabel": "Licence note",
+        "licenseHint": "Who licensed this text to the platform and on what terms. Required before the edition can go live.",
+        "saveLicense": "Save licence note",
+        "lifecycle": "Publishing",
+        "draftHint": "Facilities cannot see a draft. Activating it makes it live for every facility and retires the edition that is live now.",
+        "activeHint": "This edition is live. Retiring it removes it from the library; assessments made against it keep their text.",
+        "activate": "Activate edition",
+        "delete": "Delete draft",
+        "retire": "Retire edition",
+        "content": "Content"
+      },
+      "errors": {
+        "invalid": "Something in the form is not valid.",
+        "forbidden": "You are not allowed to do this.",
+        "notFound": "This edition no longer exists.",
+        "notDraft": "Only a draft edition can do this.",
+        "notActive": "Only a live edition can be retired.",
+        "licenseRequired": "Add a licence note before activating. A live edition must keep one.",
+        "importNotPending": "This import has already been committed or discarded.",
+        "editionExists": "This edition already exists."
+      }
+    }
   }
 }

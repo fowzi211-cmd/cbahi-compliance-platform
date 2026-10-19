@@ -1,4 +1,4 @@
-import { authDb } from "@/lib/db";
+import { authDb, type Tx } from "@/lib/db";
 import type { LockoutState } from "./domain/rules";
 
 // Identity tables are global and only reachable through the `mustamir_auth` role.
@@ -36,4 +36,16 @@ export async function markEmailVerified(userId: string) {
 
 export async function deleteSession(sessionId: string) {
   await authDb().session.deleteMany({ where: { id: sessionId } });
+}
+
+/** Runs inside the system transaction that also writes the audit event. */
+export function setPlatformAdmin(tx: Tx, email: string, isPlatformAdmin: boolean) {
+  return tx.user.updateMany({
+    where: { email: email.trim().toLowerCase() },
+    data: { isPlatformAdmin },
+  });
+}
+
+export function findUserIdByEmail(tx: Tx, email: string) {
+  return tx.user.findUnique({ where: { email: email.trim().toLowerCase() }, select: { id: true } });
 }
