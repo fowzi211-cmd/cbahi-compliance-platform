@@ -1,0 +1,158 @@
+// Data model: docs/ARCHITECTURE.md §3. Every tenant-owned table carries `tenant_id` and has a
+// Row-Level Security policy (added in the migration SQL, since Prisma cannot express it).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Tier {
+  platform
+  hybrid
+}
+
+enum MembershipRole {
+  facility_owner
+  quality_manager
+  department_head
+  staff
+  viewer
+}
+
+model Tenant {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  name          String
+  defaultLocale String   @default("ar") @map("default_locale")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  subscription Subscription?
+  facilities   Facility[]
+  departments  Department[]
+  memberships  Membership[]
+  auditEvents  AuditEvent[]
+
+  @@map("tenant")
+}
+
+model Subscription {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  tenantId         String    @unique @map("tenant_id") @db.Uuid
+  tier             Tier      @default(platform)
+  startsOn         DateTime  @map("starts_on") @db.Date
+  endsOn           DateTime? @map("ends_on") @db.Date
+  featureOverrides Json      @default("{}") @map("feature_overrides")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("subscription")
+}
+
+model Facility {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  nameAr     String    @map("name_ar")
+  nameEn     String    @map("name_en")
+  // Free text until M5 introduces the facility-type catalogue.
+  type       String
+  licenseNo  String?   @map("license_no")
+  city       String?
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  departments Department[]
+  memberships Membership[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId])
+  @@map("facility")
+}
+
+model Department {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  facilityId String    @map("facility_id") @db.Uuid
+  nameAr     String    @map("name_ar")
+  nameEn     String    @map("name_en")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Composite key: a department can never point at another tenant's facility.
+  facility    Facility     @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  memberships Membership[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, facilityId])
+  @@map("department")
+}
+
+// Users are global: one person can hold roles in several tenants (e.g. a quality manager
+// working for two clinic groups). What they can see is decided by Membership.
+model User {
+  id                   String   @id @default(uuid(7)) @db.Uuid
+  email                String   @unique
+  name                 String
+  locale               String   @default("ar")
+  isPlatformAdmin      Boolean  @default(false) @map("is_platform_admin")
+  isPlatformConsultant Boolean  @default(false) @map("is_platform_consultant")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  memberships Membership[]
+
+  @@map("app_user")
+}
+
+model Membership {
+  id           String         @id @default(uuid(7)) @db.Uuid
+  tenantId     String         @map("tenant_id") @db.Uuid
+  userId       String         @map("user_id") @db.Uuid
+  facilityId   String         @map("facility_id") @db.Uuid
+  departmentId String?        @map("department_id") @db.Uuid
+  role         MembershipRole
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  facility   Facility    @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  department Department? @relation(fields: [tenantId, departmentId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([userId, facilityId, role])
+  @@index([tenantId, facilityId])
+  @@map("membership")
+}
+
+// Append-only. A database trigger rejects UPDATE and DELETE, stamps `at` with the server
+// clock and chains each row to the previous one of the same tenant with SHA-256.
+model AuditEvent {
+  id          BigInt   @id @default(autoincrement())
+  tenantId    String?  @map("tenant_id") @db.Uuid
+  chainSeq    BigInt   @default(0) @map("chain_seq")
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  action      String
+  entity      String
+  entityId    String?  @map("entity_id")
+  before      Json?
+  after       Json?
+  ip          String?  @db.Inet
+  at          DateTime @default(now()) @db.Timestamptz(6)
+  prevHash    Bytes?   @map("prev_hash")
+  hash        Bytes?
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, at])
+  @@index([tenantId, entity, entityId])
+  @@map("audit_event")
+}

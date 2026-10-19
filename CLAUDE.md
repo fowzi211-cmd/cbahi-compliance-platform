@@ -26,8 +26,11 @@ pnpm test                   # vitest unit
 pnpm test:e2e               # playwright (desktop + mobile viewports)
 pnpm lint / typecheck / format
 pnpm i18n:check             # ar/en message keys and placeholders match
-# added by later milestones: pnpm worker (M10), pnpm db:migrate / db:seed (M2), pnpm test:int (M2)
-pnpm check                  # lint + typecheck + format + i18n parity + unit (+ int from M2)
+pnpm db:setup               # create local DB roles + apply migrations (after compose up)
+pnpm db:migrate             # prisma migrate dev (new migration from schema changes)
+pnpm test:int               # vitest integration against <db>_test (needs docker postgres)
+# added by later milestones: pnpm worker (M10), pnpm db:seed (M4/M17)
+pnpm check                  # lint + typecheck + format + i18n parity + unit + int
 ```
 
 ## Folder structure
@@ -95,5 +98,6 @@ Modules call other modules **only through `service.ts`**. `domain/` imports noth
 
 - Check permissions with `can()` in the service, never only in the UI.
 - Issue signed URLs only after a permission check, and give them a TTL of 5 minutes or less.
-- Raw SQL must run inside the tenant transaction wrapper.
+- Raw SQL must run inside the tenant transaction wrapper (`withTenant`). Use `withSystem` only for platform-admin or cross-tenant work, and audit every write made through it.
+- RLS policies, grants and triggers live in hand-written migration SQL (Prisma cannot express them). A new tenant-owned table needs its policy in the same migration.
 - Do not log document contents or personal data.

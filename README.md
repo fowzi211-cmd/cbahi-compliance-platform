@@ -16,9 +16,10 @@ compliant with accreditation standards: before their first survey and between su
 Requirements: Node.js 22+, pnpm 10 (`corepack enable`), Docker.
 
 ```bash
-cp .env.example .env.local
+cp .env.example .env
 docker compose up -d      # PostgreSQL :5432, S3 storage :8333, Mailpit :1025 / UI :8025
 pnpm install
+pnpm db:setup             # database roles + migrations
 pnpm dev                  # http://localhost:3000
 ```
 
@@ -35,7 +36,8 @@ Stop everything with `docker compose down` (add `-v` to wipe data).
 ## Tests and checks
 
 ```bash
-pnpm check        # lint, typecheck, formatting, unit tests
+pnpm check        # lint, typecheck, formatting, i18n parity, unit + integration tests
+pnpm test:int     # integration tests on a real PostgreSQL (tenant isolation, audit log)
 pnpm test         # unit tests (Vitest)
 pnpm test:e2e     # end-to-end tests (Playwright, desktop + mobile viewports)
 ```
