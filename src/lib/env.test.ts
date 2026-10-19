@@ -3,7 +3,9 @@ import { parseEnv } from "./env";
 
 const valid = {
   DATABASE_URL: "postgresql://app:app@localhost:5432/mustamir",
+  DATABASE_AUTH_URL: "postgresql://auth:auth@localhost:5432/mustamir",
   DATABASE_SYSTEM_URL: "postgresql://system:system@localhost:5432/mustamir",
+  BETTER_AUTH_SECRET: "test-secret-that-is-at-least-32-characters",
   S3_ENDPOINT: "http://localhost:9000",
   S3_REGION: "me-central-1",
   S3_BUCKET: "evidence",

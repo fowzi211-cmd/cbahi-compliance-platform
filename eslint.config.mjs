@@ -6,16 +6,21 @@ import nextTs from "eslint-config-next/typescript";
 // - code inside a module uses relative imports for its own files;
 // - other modules are reached only through `@/modules/<name>/service`;
 // - `domain/` is pure: no Prisma, no Next.js, no lib I/O.
+// - routes (src/app) may also render a module's `ui/` components.
+const moduleInternals = [
+  "@/modules/*/repo",
+  "@/modules/*/repo.*",
+  "@/modules/*/jobs",
+  "@/modules/*/domain",
+  "@/modules/*/domain/**",
+];
 const crossModuleInternals = {
-  group: [
-    "@/modules/*/repo",
-    "@/modules/*/repo.*",
-    "@/modules/*/jobs",
-    "@/modules/*/domain",
-    "@/modules/*/domain/**",
-    "@/modules/*/ui/**",
-  ],
+  group: [...moduleInternals, "@/modules/*/ui/**"],
   message: "Import another module only through its service: @/modules/<name>/service.",
+};
+const routeModuleInternals = {
+  group: moduleInternals,
+  message: "Routes reach modules through their service or ui/ components.",
 };
 
 // RTL: physical direction utilities break the mirrored Arabic layout. Use logical ones
@@ -37,6 +42,12 @@ const eslintConfig = defineConfig([
         { selector: "TSEnumDeclaration", message: "Use `as const` unions instead of enums." },
       ],
       "no-restricted-imports": ["error", { patterns: [crossModuleInternals] }],
+    },
+  },
+  {
+    files: ["src/app/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [routeModuleInternals] }],
     },
   },
   {

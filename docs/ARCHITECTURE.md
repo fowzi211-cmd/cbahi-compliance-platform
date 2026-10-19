@@ -45,8 +45,8 @@ Modular monolith. Each module owns its tables, exposes a typed **service API**, 
 src/
   app/[locale]/...            # routes (thin): parse input → call service → render
   modules/
-    identity/       users, sessions, MFA, invitations
-    tenancy/        tenants, facilities, departments, memberships, RBAC policy
+    identity/       users, sessions, MFA, lockout (Better Auth behind it)
+    tenancy/        tenants, facilities, departments, memberships, invitations, RBAC policy
     standards/      frameworks, chapters, standards, elements, scales, import, crosswalk (phase 2)
     assessments/    assessments, element scores, scoring & roll-up engine, readiness
     tracers/        tracer templates, schedules, runs, random sampling
@@ -255,7 +255,7 @@ erDiagram
 ## 5. Multi-tenancy and isolation
 
 - **Layer 1, application:** each request resolves a `TenantContext { tenantId, userId, facilityIds, roles }` from the session. Repositories take the context and always filter by `tenant_id`. There is no raw Prisma access outside `repo.ts` files (lint rule).
-- **Layer 2, database:** RLS is enabled and forced on every tenant-owned table with the policy `tenant_id = app_current_tenant()`, which reads `app.tenant_id` and returns NULL (no rows) when it is unset. `withTenant()` in `src/lib/db.ts` wraps each unit of work in a transaction that runs `SELECT set_config('app.tenant_id', $1, true)`. Three database roles keep privilege low: `mustamir_app` (the app, no `BYPASSRLS`, cannot write `subscription` or change `audit_event`), `mustamir_system` (`BYPASSRLS`, used through `withSystem()` for platform-admin work and cross-tenant jobs, always audited), and the schema owner (migrations only). `app_user` is global, but a tenant sees only users who hold a membership in it. Foreign keys between tenant-owned tables are composite (`tenant_id, id`), so a row can never reference another tenant's row.
+- **Layer 2, database:** RLS is enabled and forced on every tenant-owned table with the policy `tenant_id = app_current_tenant()`, which reads `app.tenant_id` and returns NULL (no rows) when it is unset. `withTenant()` in `src/lib/db.ts` wraps each unit of work in a transaction that runs `SELECT set_config('app.tenant_id', $1, true)`. Four database roles keep privilege low: `mustamir_app` (the app, no `BYPASSRLS`, cannot write `subscription` or change `audit_event`, cannot read the auth tables), `mustamir_auth` (Better Auth and the identity module only: `app_user` and the `auth_*` tables, nothing tenant-owned), `mustamir_system` (`BYPASSRLS`, used through `withSystem()` for platform-admin work and cross-tenant jobs, always audited), and the schema owner (migrations only). `app_user` is global, but a tenant sees only users who hold a membership in it. Before a request knows its tenant, `withoutTenant()` runs as the app role with no tenant set, where only two `SECURITY DEFINER` lookups return data: a user's own memberships (`app_user_memberships`, keyed by the verified session's user id) and an invitation by the hash of its secret token (`app_find_invitation`). Foreign keys between tenant-owned tables are composite (`tenant_id, id`), so a row can never reference another tenant's row.
 - **Consultants** are platform users. They receive a scoped context only for facilities with an active `ConsultantAssignment` on a Hybrid tenant.
 - **Storage keys** are prefixed `tenants/{tenantId}/facilities/{facilityId}/...`. A signed URL is issued only after a service-level permission check, and it lasts 5 minutes.
 - **Tests:** an isolation suite creates two tenants and asserts that every repository and every route handler returns nothing, and cannot write anything, across the boundary. It also covers raw SQL under RLS.
@@ -279,11 +279,15 @@ erDiagram
 
 \* Only on assigned Hybrid facilities. The platform super-admin manages frameworks, tiers and assignments and has no default access to tenant data. Support access must be granted explicitly per tenant and is time-limited and audited.
 
-The policy lives in one place, `tenancy/domain/policy.ts`, as `can(ctx, action, resource)`. It is covered by a table-driven test that mirrors this matrix.
+The policy lives in one place, `tenancy/domain/policy.ts`, as `can(ctx, action, resource)`. It is covered by a table-driven test that mirrors this matrix. "Own dept" means the record's department equals the department on the membership; a record with no department (facility-wide) is out of scope for a department-scoped role.
+
+**Granting roles** never raises anyone above the granter: an owner can grant every role, a quality manager can grant department head, staff and viewer only (appointing a quality manager or an owner is a leadership decision), and nobody else can grant roles (`assignableRoles`).
+
+**Invitations** (tenancy module): an invitation is a one-time link into one facility role, valid for 7 days. Only a SHA-256 hash of the token is stored. Re-inviting the same person to the same role revokes the earlier link. Whoever accepts must be signed in with the invited email (case-insensitive), which also marks that email verified. Someone who signs up without an invitation creates their own organization and becomes owner of its first facility (`createOrganization`, allowed only while they belong to no facility); the tier starts as Platform and is changed by the super-admin.
 
 **Other controls**
 
-- MFA (TOTP) is **required** for owner, quality manager, consultant and super-admin, and optional for others. Session idle timeout is 30 minutes and absolute timeout 12 hours. Passwords are argon2id, with lockout and rate limiting.
+- MFA (TOTP) is **required** for owner, quality manager, consultant and super-admin, and optional for others. The app sends such a user to enrolment before any page renders; enrolment shows 10 single-use backup codes. Session idle timeout is 30 minutes (sliding, refreshed at most every 5 minutes) and absolute timeout 12 hours from sign-in. Passwords are 12–128 characters, hashed with argon2id (m=19 MiB, t=2, p=1). Five wrong passwords in a row lock the account for 15 minutes (further attempts do not extend the lock, so an attacker cannot keep a user out indefinitely); wrong TOTP codes have their own lockout (10 attempts, 15 minutes). Auth endpoints are rate-limited per client IP. Sign-ins and lockouts are written to the audit log of every tenant the user belongs to.
 - **Encryption:** TLS everywhere, Postgres storage encryption, and server-side encryption on the object store. Files are never served from a public bucket.
 - **Audit log:** an append-only `audit_event` table. A DB trigger rejects UPDATE and DELETE. Each row stores a SHA-256 hash chained to the previous row per tenant, and a verification command checks the chain. It covers scores, evidence, approvals, CAPA status, role changes, exports and logins.
 - **PDPL and data minimization:** no patient fields exist anywhere in the schema. Uploads require an attestation checkbox. The server extracts text (PDF and DOCX) and scans it for Saudi national ID or Iqama numbers (10 digits starting with 1 or 2), MRN or medical-record labels, and dates of birth near names. A hit blocks the upload until the user confirms the content is redacted, and the confirmation is audited. Data processing records and a retention policy are kept per tenant, and tenant data can be exported or deleted.

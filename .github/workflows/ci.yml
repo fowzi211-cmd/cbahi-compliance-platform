@@ -40,10 +40,6 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U mustamir -d mustamir"
           --health-interval 5s --health-timeout 5s --health-retries 10
-    env:
-      DATABASE_URL: postgresql://mustamir_app:mustamir_app@localhost:5432/mustamir
-      DATABASE_SYSTEM_URL: postgresql://mustamir_system:mustamir_system@localhost:5432/mustamir
-      DATABASE_ADMIN_URL: postgresql://mustamir:mustamir@localhost:5432/mustamir
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -52,12 +48,32 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The example values match the CI services (dev-only credentials and secret).
+      - run: cp .env.example .env
       # Creates the _test database, the app roles and applies migrations before the tests.
       - run: pnpm test:int
 
   e2e:
     runs-on: ubuntu-latest
     needs: check
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: mustamir
+          POSTGRES_PASSWORD: mustamir
+          POSTGRES_DB: mustamir
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mustamir -d mustamir"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      # Invitation emails are read back from Mailpit's API by the e2e tests.
+      mailpit:
+        image: axllent/mailpit:v1.27
+        ports:
+          - 1025:1025
+          - 8025:8025
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -67,6 +83,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
+      - run: cp .env.example .env
+      - run: pnpm db:setup
       - run: pnpm build
       - run: pnpm test:e2e
       - uses: actions/upload-artifact@v4

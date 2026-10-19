@@ -1,5 +1,14 @@
 export type AuditAction =
-  "create" | "update" | "archive" | "delete" | "approve" | "export" | "login";
+  | "create"
+  | "update"
+  | "archive"
+  | "delete"
+  | "approve"
+  | "export"
+  | "login"
+  | "lock"
+  | "revoke"
+  | "accept";
 
 export type AuditEventInput = {
   action: AuditAction;

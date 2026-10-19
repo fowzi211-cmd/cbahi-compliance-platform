@@ -6,6 +6,7 @@ import {
   ListChecks,
   Route,
   Settings,
+  UserCog,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -18,6 +19,7 @@ export type NavKey =
   | "findings"
   | "documents"
   | "committees"
+  | "people"
   | "settings";
 
 export type NavItem = {
@@ -36,6 +38,7 @@ export const navItems: NavItem[] = [
   { key: "findings", href: "/findings", icon: ListChecks, milestone: "M9" },
   { key: "documents", href: "/documents", icon: FileText, milestone: "M8" },
   { key: "committees", href: "/committees", icon: Users, milestone: "M12" },
+  { key: "people", href: "/people", icon: UserCog },
   { key: "settings", href: "/settings", icon: Settings, milestone: "M5" },
 ];
 
