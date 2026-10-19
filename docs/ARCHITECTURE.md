@@ -242,7 +242,7 @@ erDiagram
 
 **As built in M9** (differences from the diagram above):
 
-- `capa_item.status` is `open | in_progress | done | cancelled`. **Overdue is not stored**: it follows from `due_on` and the day, so it can never be stale. `escalation_level` is computed the same way; M10 stores which levels have been notified when it sends the notices. `capa_item` also stores `action` (the text of the plan), `closure_note`, `closed_by`, and `department_id` copied from the finding for scoping.
+- `capa_item.status` is `open | in_progress | done | cancelled`. **Overdue is not stored**: it follows from `due_on` and the day, so it can never be stale. `escalation_level` is computed the same way. M10 records which levels have been notified as notification dedupe keys (`capa:{id}:{due_on}:level{n}`), not as a column, so moving the due date starts the schedule afresh. `capa_item` also stores `action` (the text of the plan), `closure_note`, `closed_by`, and `department_id` copied from the finding for scoping.
 - `capa_evidence` holds closure proof: `kind` `document` (an approved `document_version_id`, composite FK) or `link` (`url`), with an optional `description`.
 - `finding` gains `closed_at`, `verified_at` and `verified_score_id` (the later score that proved the fix). A CHECK keeps them consistent with `status`.
 - **Triggers:** an item cannot become `done` without at least one `capa_evidence` row, and the evidence of a done or cancelled item cannot be added, changed or removed until it is reopened.
@@ -279,6 +279,13 @@ erDiagram
 - `document_version` stores `file_name`, `content_type`, `bytes`, `sha256` (32 bytes), `storage_key`, the three dates, `change_note`, `phi_attested` (CHECK true), `phi_scan` (`{ scanned, hits: [{ kind, count }] }`, never the matched text) and `phi_override`. A trigger refuses any change to the file and PHI columns, any date change once decided, and any delete. `document_approval` is append-only (trigger).
 - `Document }o--o{ Element` is the `document_element` table. `score_evidence.document_version_id` cites a version; links cited before M8 stay valid, and a link is still accepted for a document kept outside the platform.
 - **Uploads go through the server**, not straight to the bucket with a signed PUT URL as ROADMAP M8 first said: the file must be type-checked from its bytes, hashed and scanned for PHI before it is stored, so a file that fails never reaches storage. A server action takes up to 10 MB. **Downloads** use signed GET URLs (5 minutes), minted by a route only after the permission check, at the moment of the click. Objects are written with server-side encryption under `tenants/{tenantId}/facilities/{facilityId}/documents/{documentId}/{versionId}`.
+
+**As built in M10** (differences from the diagram above):
+
+- `notification` has no `channel` column. It is one in-app notice per person and event, and it is **also the email outbox**: `email_status` (`pending | sent | skipped | failed`), `emailed_at`, `email_attempts`. A CHECK keeps `emailed_at` set exactly when the status is `sent`. Business code writes the notice in the same transaction as the change that caused it, so a crash after commit never loses an email: the worker's next sweep sends it.
+- `priority` is `immediate | digest`, fixed by the type. `payload` is validated with a zod schema per type and holds only what the template needs (codes, titles, dates), never personal data beyond the recipient.
+- `dedupe_key` is unique per `(tenant_id, user_id)`, so daily jobs can run twice, or catch up, without sending a notice twice.
+- `notification_preference (tenant_id, user_id)` stores `email_immediate`, `email_digest` and an optional email `locale` (else the user's UI locale). Both tables are tenant-owned with RLS.
 
 **Phase 2 placeholders**: tables designed, not built. `KpiDefinition` / `KpiValue` (monthly) link to elements with evidence type `kpi`. `StaffCredential` (SCFHS licence, BLS/ACLS) with expiry reminders reuses the document reminder job. `Incident`. `Crosswalk(element_a, element_b, relation)`. `SeasonalCycle` (a facility with `active_from`/`active_to` and time-bounded snapshots). The benchmarking view aggregates `ElementStatus` across tenants with k-anonymity (no result for groups smaller than 5 facilities).
 
@@ -318,7 +325,7 @@ erDiagram
 
 **As built in M8** (`documents/domain/`, `documents/service.ts`):
 
-- _Document lifecycle (rule 8)._ An approved version is _current_, _due for review_ from its review date (still in force: review is a reminder), and _expired_ the day after its expiry date (a cut-off). Only a current or review-due version of a document that is not retired can be cited; an expired one is refused. Dates must run effective → review → expiry. A rejection needs a comment. Uploaders may approve their own version; the audit event records `selfApproved` so a reviewer can see it. Review and expiry reminders, and flagging linked elements when a document expires, arrive with the notification jobs (M10).
+- _Document lifecycle (rule 8)._ An approved version is _current_, _due for review_ from its review date (still in force: review is a reminder), and _expired_ the day after its expiry date (a cut-off). Only a current or review-due version of a document that is not retired can be cited; an expired one is refused. Dates must run effective → review → expiry. A rejection needs a comment. Uploaders may approve their own version; the audit event records `selfApproved` so a reviewer can see it. Review and expiry reminders arrive with the notification jobs (M10): review-due and expiring-soon (30 days before expiry) go into the daily digest, and expiry is an immediate notice, to the document owner, quality managers and facility owners. Showing the elements whose cited document has expired moves to the M13 readiness view, which computes it from the dates rather than storing a flag.
 - _Files._ The type comes from the file's bytes (PDF, Word, Excel, PNG, JPEG), not its name. The same file cannot be uploaded twice to one document (SHA-256).
 - _PHI guard (decision 10)._ Every upload needs the attestation. Text is extracted from PDF and Word files and scanned for a 10-digit national ID or Iqama number (starting 1 or 2, Arabic-Indic digits included), a medical-record or patient number after its label, and a date after a date-of-birth label. A match stops the upload until the uploader confirms the file holds no patient data; the confirmation is audited (`phi_override`, kinds and counts only). Images and spreadsheets are not scanned; the attestation covers them.
 - _Who._ `document.upload` and `document.approve` per the matrix in §6; linking follows upload, retiring follows approve. Every member of the facility can read its documents and download them.
@@ -328,7 +335,7 @@ erDiagram
 - _CAPA lifecycle (rule 7)._ `start` (open → in progress), `complete` (open or in progress → done; needs evidence and a closure note), `cancel` (needs a reason) and `reopen` (done → in progress; needs a reason, refused once the finding is verified). A due date is never in the past when set or moved; moving it needs a reason, kept in the audit log. Evidence is an approved document version in force (rule 8) or an http(s) link.
 - _Finding status._ Derived from its actions on every change: `open` with no live (non-cancelled) action, `closed` when every live action is done, `in_progress` otherwise. `verified` is final.
 - _Verification._ Submitting an assessment verifies each `closed` finding on an element it scores at full compliance (normalized 1) with a score saved after the finding closed. A department assessment verifies only that department's findings; a facility-wide one verifies any. A finding that is still open is not verified by a good score: its actions must be closed first.
-- _Escalation schedule._ Level 1 from the first day overdue (the owner), level 2 from 7 days (adds the quality manager), level 3 from 14 days (adds the facility owner). M9 shows the level on the action; M10 sends the notices.
+- _Escalation schedule._ Level 1 from the first day overdue (the owner), level 2 from 7 days (adds the quality manager), level 3 from 14 days (adds the facility owner). M9 shows the level on the action; M10 sends the notices, each level once, and a job that missed days catches up by sending every level reached.
 - _Readiness._ Overdue actions are counted across the facility for rule 4.
 - _Who._ Planning (create, reschedule, cancel, reopen) follows `capa.create` for the finding's scope. Starting, adding evidence and completing are for the owner (`capa.closeOwn`) or a planner; the audit event records `closedByOwner`. An action's owner can read its finding even outside their department. Owners must be members of the facility with a role other than viewer.
 
@@ -384,7 +391,16 @@ The policy lives in one place, `tenancy/domain/policy.ts`, as `can(ctx, action, 
 
 ## 8. Notifications
 
-`notifications.send({ userId, type, payload })` stores an in-app notification and enqueues a delivery job for each channel the user has enabled. Each channel implements `Channel.deliver(notification)`. The MVP has `InAppChannel` and `EmailChannel` (SMTP). `SmsChannel` and `WhatsAppChannel` are stubs that plug in later. Templates are per type and per locale. A daily digest groups low-priority reminders so people are not flooded.
+`notifications.notify(tx, ctx, notices)` stores in-app notices inside the caller's transaction. Each notice carries a `dedupeKey`; a duplicate is ignored. Templates are per type and per locale (`notifications.types.*` in the message files) and are rendered when shown or emailed, so a notice reads in whichever language the reader uses.
+
+**As built in M10:**
+
+- **Types and priority.** `capaAssigned`, `capaOverdue` and `documentExpired` are immediate. `documentReviewDue` and `documentExpiring` go into the daily digest.
+- **Email.** Every minute, `deliver` claims pending immediate notices (`FOR UPDATE SKIP LOCKED`) and emails each one, unless the person turned immediate email off (it then waits for the digest) or turned all email off (skipped). At 07:00 Riyadh, `digest` sends each person one email listing all their still-pending notices. A notice already read in the app is not emailed. A send error is retried on later sweeps, up to 3 attempts, then marked `failed`.
+- **Jobs.** `reminders` runs at 06:00 Riyadh: document review and expiry reminders, then CAPA escalation. Each job reads the tenant list through the system role, then works tenant by tenant inside `withTenant`, so RLS still applies. One tenant's error does not stop the others.
+- **Worker.** `pnpm worker` runs pg-boss (schema `pgboss`, created by the migration because the system role cannot create schemas) with the three cron schedules. `pnpm jobs:run <job>... [--now ISO]` runs jobs once without the queue, for catching up after downtime and for tests with a fake clock.
+- **Channels.** In-app and email (SMTP via `lib/email`). `SmsChannel` and `WhatsAppChannel` are stubs that report "not configured"; no phone numbers are stored until a KSA provider and a PDPL basis for holding staff numbers are agreed.
+- **UI.** A bell in the header with the unread count, an inbox at `/notifications` (opening a notice marks it read), and per-person email preferences on the same page.
 
 ## 9. Standards import
 

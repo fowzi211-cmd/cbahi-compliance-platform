@@ -224,3 +224,25 @@ export function listApprovedVersions(tx: Tx, tenantId: string, facilityId: strin
     },
   });
 }
+
+/** Approved versions with a review or expiry date, in every facility, for the reminder job. */
+export function listDatedApprovedVersions(tx: Tx, tenantId: string) {
+  return tx.documentVersion.findMany({
+    where: {
+      tenantId,
+      status: "approved",
+      document: { retiredAt: null },
+      OR: [{ reviewOn: { not: null } }, { expiresOn: { not: null } }],
+    },
+    orderBy: [{ uploadedAt: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      version: true,
+      reviewOn: true,
+      expiresOn: true,
+      document: {
+        select: { id: true, facilityId: true, ownerUserId: true, titleAr: true, titleEn: true },
+      },
+    },
+  });
+}

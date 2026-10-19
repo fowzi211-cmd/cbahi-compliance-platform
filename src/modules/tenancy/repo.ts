@@ -278,3 +278,27 @@ export async function markInvitationAccepted(
 export function findUser(tx: Tx, id: string) {
   return tx.user.findUnique({ where: { id }, select: { id: true, name: true, email: true } });
 }
+
+export function listTenantIds(tx: Tx) {
+  return tx.tenant.findMany({ select: { id: true }, orderBy: { createdAt: "asc" } });
+}
+
+export function listRoleHolders(
+  tx: Tx,
+  tenantId: string,
+  facilityId: string,
+  roles: MembershipRole[],
+) {
+  return tx.membership.findMany({
+    where: { tenantId, facilityId, role: { in: roles } },
+    select: { userId: true },
+  });
+}
+
+/** Only users with a membership in this tenant: RLS on app_user hides everyone else. */
+export function listRecipients(tx: Tx, tenantId: string, userIds: string[]) {
+  return tx.user.findMany({
+    where: { id: { in: userIds }, memberships: { some: { tenantId } } },
+    select: { id: true, name: true, email: true, locale: true },
+  });
+}

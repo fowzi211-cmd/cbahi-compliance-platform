@@ -50,6 +50,8 @@ model Tenant {
   documentElements     DocumentElement[]
   capaItems            CapaItem[]
   capaEvidence         CapaEvidence[]
+  notifications        Notification[]
+  notificationPrefs    NotificationPreference[]
 
   @@map("tenant")
 }
@@ -100,6 +102,7 @@ model Facility {
   findings      Finding[]
   documents     Document[]
   capaItems     CapaItem[]
+  notifications Notification[]
 
   @@unique([tenantId, id])
   @@index([tenantId])
@@ -923,4 +926,66 @@ model CapaEvidence {
 
   @@index([tenantId, capaItemId])
   @@map("capa_evidence")
+}
+
+// ---------------------------------------------------------------------------
+// Notifications (M10). Tenant-owned with RLS. A notification is the in-app record and the
+// email outbox at once: the worker sends what is pending and marks it, so nothing is lost
+// if a job fails after the business change committed.
+// ---------------------------------------------------------------------------
+
+enum NotificationPriority {
+  // Sent by email as soon as the worker sees it (an assignment, an escalation, an expiry).
+  immediate
+  // Collected into the daily digest (review due, expiring soon).
+  digest
+}
+
+enum EmailStatus {
+  pending
+  sent
+  // Nothing to send: email turned off, or read in the app before the digest went out.
+  skipped
+  failed
+}
+
+model Notification {
+  id            String               @id @default(uuid(7)) @db.Uuid
+  tenantId      String               @map("tenant_id") @db.Uuid
+  facilityId    String               @map("facility_id") @db.Uuid
+  userId        String               @map("user_id") @db.Uuid
+  type          String
+  // Template values (codes, titles, dates), never patient data or document contents.
+  payload       Json
+  priority      NotificationPriority
+  // One notice per event and person: a daily job can run again without repeating itself.
+  dedupeKey     String               @map("dedupe_key")
+  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  readAt        DateTime?            @map("read_at") @db.Timestamptz(6)
+  emailStatus   EmailStatus          @default(pending) @map("email_status")
+  emailedAt     DateTime?            @map("emailed_at") @db.Timestamptz(6)
+  emailAttempts Int                  @default(0) @map("email_attempts")
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facility Facility @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, dedupeKey])
+  @@index([tenantId, userId, createdAt])
+  @@index([tenantId, emailStatus])
+  @@map("notification")
+}
+
+model NotificationPreference {
+  tenantId       String   @map("tenant_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  emailImmediate Boolean  @default(true) @map("email_immediate")
+  emailDigest    Boolean  @default(true) @map("email_digest")
+  // The language of emails; null means the language the person signed up in.
+  locale         String?
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, userId])
+  @@map("notification_preference")
 }

@@ -139,6 +139,25 @@ export function escalationTargets(level: EscalationLevel): EscalationTarget[] {
 }
 
 /**
+ * The escalation notices an action calls for on `today` (ARCHITECTURE §8): each level tells
+ * the person it adds, once. Keyed to the due date, so moving the date starts afresh, and a
+ * job that missed days catches up by sending every level reached so far.
+ */
+export function escalationNotices(
+  item: { id: string; status: CapaStatus; dueOn: string },
+  today: string,
+): { level: Exclude<EscalationLevel, 0>; notify: EscalationTarget; dedupeKey: string }[] {
+  const level = escalationLevel(item, today);
+  return escalationSchedule
+    .filter((step) => step.level <= level)
+    .map((step) => ({
+      level: step.level,
+      notify: step.notify,
+      dedupeKey: `capa:${item.id}:${item.dueOn}:level${step.level}`,
+    }));
+}
+
+/**
  * A finding's status follows its actions: open with no live plan, closed when every
  * non-cancelled action is done, in progress otherwise. Verified is final: only a later
  * full-compliance score sets it, and nothing about the actions undoes it.

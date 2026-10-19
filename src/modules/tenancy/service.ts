@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { withoutTenant, withSystem, withTenant, type TenantContext } from "@/lib/db";
+import { withoutTenant, withSystem, withTenant, type TenantContext, type Tx } from "@/lib/db";
 import { DomainError, ForbiddenError } from "@/lib/errors";
 import { recordAudit, recordPlatformAudit } from "@/modules/audit/service";
 import {
@@ -434,6 +434,31 @@ export async function listFacilityPeople(ctx: AccessContext, facilityId: string)
   return [...people.values()];
 }
 export type FacilityPerson = Awaited<ReturnType<typeof listFacilityPeople>>[number];
+
+// --- For background jobs --------------------------------------------------------------------
+// Jobs act for the tenant, not for a person, so these take the job's own tenant transaction.
+
+/** Every tenant id, for jobs that visit each tenant in turn. Read-only. */
+export async function listTenantIds(): Promise<string[]> {
+  const rows = await withSystem((tx) => repo.listTenantIds(tx));
+  return rows.map((row) => row.id);
+}
+
+/** The people holding any of `roles` in a facility (facility-wide or in a department). */
+export async function listRoleHolders(
+  tx: Tx,
+  ctx: TenantContext,
+  facilityId: string,
+  roles: MembershipRole[],
+): Promise<string[]> {
+  const rows = await repo.listRoleHolders(tx, ctx.tenantId, facilityId, roles);
+  return [...new Set(rows.map((row) => row.userId))];
+}
+
+/** Whom to email: name, address and sign-up language of members of this tenant. */
+export function listRecipients(tx: Tx, ctx: TenantContext, userIds: string[]) {
+  return repo.listRecipients(tx, ctx.tenantId, userIds);
+}
 
 export function getSubscription(ctx: AccessContext) {
   return withTenant(ctx, (tx) => repo.findSubscription(tx, ctx.tenantId));

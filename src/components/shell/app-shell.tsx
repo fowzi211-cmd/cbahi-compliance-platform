@@ -5,6 +5,7 @@ import type { FacilityOption } from "@/lib/session";
 import { FacilitySwitcher } from "./facility-switcher";
 import { LocaleSwitcher } from "./locale-switcher";
 import { MobileNav } from "./mobile-nav";
+import { NotificationBell } from "./notification-bell";
 import type { NavKey } from "./nav-items";
 import { SessionKeepAlive } from "./session-keep-alive";
 import { SidebarNav } from "./sidebar-nav";
@@ -17,12 +18,14 @@ export async function AppShell({
   facilities,
   activeFacilityId,
   hiddenNav,
+  unreadNotifications,
 }: {
   children: ReactNode;
   userName: string;
   facilities: FacilityOption[];
   activeFacilityId: string;
   hiddenNav: readonly NavKey[];
+  unreadNotifications: number;
 }) {
   const t = await getTranslations("common");
   const locale = await getLocale();
@@ -48,6 +51,7 @@ export async function AppShell({
         <FacilitySwitcher options={options} activeId={activeFacilityId} />
         <div className="ms-auto flex items-center gap-3">
           <TodayDate />
+          <NotificationBell unread={unreadNotifications} />
           <LocaleSwitcher />
           <SignOutButton userName={userName} />
         </div>
