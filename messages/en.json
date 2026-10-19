@@ -3,8 +3,6 @@
     "appName": "Mustamir",
     "tagline": "Continuous accreditation compliance for healthcare facilities",
     "skipToContent": "Skip to content",
-    "comingSoon": "Coming soon",
-    "availableIn": "This module arrives in milestone {milestone}.",
     "loading": "Loading…"
   },
   "nav": {
@@ -666,6 +664,7 @@
       "procedure": "Procedure",
       "form": "Form",
       "plan": "Plan",
+      "minutes": "Meeting minutes",
       "other": "Other"
     },
     "states": {
@@ -1023,6 +1022,96 @@
       "esrLevelNotAllowed": "ESR elements take only “Met” or “Not met”.",
       "evidenceRequired": "Describe what you saw or heard: this result needs it.",
       "commentRequired": "Say why the element is not applicable."
+    }
+  },
+  "committees": {
+    "list": {
+      "title": "Committees",
+      "intro": "The facility's committees, how often each must meet, and the minutes of every meeting. Approved minutes count as evidence on the elements a committee oversees.",
+      "empty": "No committees yet.",
+      "chair": "Chair: {name}",
+      "noChair": "No chair named",
+      "elements": "{count, plural, =0 {No elements overseen} one {# element overseen} other {# elements overseen}}",
+      "lastMet": "Last met {date}",
+      "neverMet": "Has not met yet",
+      "minutesMissing": "{count, plural, one {# meeting without minutes} other {# meetings without minutes}}",
+      "open": "Open",
+      "newTitle": "New committee",
+      "newIntro": "Name the committee, say how often it must meet, and who chairs it. You add the elements it oversees on its page."
+    },
+    "frequency": {
+      "monthly": "Meets monthly",
+      "quarterly": "Meets quarterly",
+      "semiannual": "Meets every six months",
+      "annual": "Meets yearly"
+    },
+    "due": {
+      "onTrack": "Next meeting due {date}",
+      "dueSoon": "Next meeting due {date}",
+      "overdue": "Meeting overdue since {date}"
+    },
+    "dueBadge": {
+      "onTrack": "On schedule",
+      "dueSoon": "Meeting due soon",
+      "overdue": "Meeting overdue"
+    },
+    "minutesStatus": {
+      "missing": "Minutes missing",
+      "inReview": "Minutes awaiting approval",
+      "approved": "Minutes approved",
+      "rejected": "Minutes rejected",
+      "retired": "Minutes retired"
+    },
+    "form": {
+      "nameAr": "Name (Arabic)",
+      "nameEn": "Name (English)",
+      "nameHint": "Enter at least one of the two names.",
+      "frequency": "How often it meets",
+      "chair": "Chair",
+      "noChair": "Not named yet",
+      "create": "Create committee",
+      "created": "Committee created.",
+      "save": "Save changes",
+      "saved": "Changes saved."
+    },
+    "detail": {
+      "back": "Back to committees",
+      "meetings": "Meetings",
+      "noMeetings": "No meetings recorded yet.",
+      "heldOn": "Meeting date",
+      "recordMeeting": "Record meeting",
+      "meetingOn": "Meeting of {date}",
+      "openMinutes": "Open the minutes",
+      "deleteMeeting": "Delete meeting",
+      "elementsTitle": "Elements overseen",
+      "elementsHint": "Minutes filed from now on are linked to these elements. Minutes already filed keep the elements they were linked to.",
+      "noElements": "This committee oversees no elements yet.",
+      "element": "Element",
+      "chooseElement": "Choose an element",
+      "addElement": "Add",
+      "removeElement": "Remove",
+      "settingsTitle": "Committee settings",
+      "archiveTitle": "Dissolve committee",
+      "archiveHint": "The committee leaves the list. Its meetings and minutes stay on record.",
+      "archive": "Dissolve"
+    },
+    "minutes": {
+      "title": "File minutes",
+      "hint": "{count, plural, =0 {The minutes are filed as a document for approval. Link the committee to elements first if they should count as evidence.} one {The minutes are filed as a document for approval, linked to the # element this committee oversees.} other {The minutes are filed as a document for approval, linked to the # elements this committee oversees.}}",
+      "defaultTitle": "Minutes of {committee}, {date}",
+      "fileHint": "PDF, Word, Excel, PNG or JPEG, up to 10 MB. Minutes should name roles and decisions, never patients.",
+      "submit": "File minutes"
+    },
+    "errors": {
+      "invalid": "Check the details you entered.",
+      "forbidden": "You are not allowed to do this.",
+      "notFound": "Committee or meeting not found.",
+      "nameRequired": "Give the committee a name in Arabic or English.",
+      "unknownChair": "That person is not a member of this facility.",
+      "unknownElement": "That element is not in your facility's frameworks.",
+      "meetingInFuture": "A meeting can only be recorded once it has taken place.",
+      "meetingExists": "A meeting on that day is already recorded.",
+      "minutesExist": "This meeting already has minutes. Upload corrections as a new version of the minutes document."
     }
   }
 }

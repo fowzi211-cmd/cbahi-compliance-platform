@@ -11,6 +11,7 @@ export const actions = [
   "tracer.run",
   "tracer.manage",
   "mockSurvey.run",
+  "committee.manage",
   "document.upload",
   "document.approve",
   "capa.create",
@@ -61,6 +62,7 @@ export const policyMatrix: Record<PolicyRole, Partial<Record<Action, Scope>>> = 
     "assessment.score": "facility",
     "tracer.run": "facility",
     "tracer.manage": "facility",
+    "committee.manage": "facility",
     "document.upload": "facility",
     "document.approve": "facility",
     "capa.create": "facility",
@@ -75,6 +77,7 @@ export const policyMatrix: Record<PolicyRole, Partial<Record<Action, Scope>>> = 
     "tracer.manage": "facility",
     // Internal mock surveys only: a consultant survey must stay independent of the facility.
     "mockSurvey.run": "internalSurvey",
+    "committee.manage": "facility",
     "document.upload": "facility",
     "document.approve": "facility",
     "capa.create": "facility",

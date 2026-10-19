@@ -276,12 +276,23 @@ export async function getUploadOptions(ctx: AccessContext, facilityId: string) {
   };
 }
 
+/**
+ * What another module may add when it files a document through its own record (a meeting's
+ * minutes): elements to link at once, and a step that runs in the same transaction, so the
+ * caller's row and the document are written together or not at all.
+ */
+export type DocumentFiling = {
+  elementIds?: readonly string[];
+  inTransaction?: (tx: Tx, created: { documentId: string; versionId: string }) => Promise<void>;
+};
+
 /** Creates a document with its first version, waiting for approval. */
 export async function createDocument(
   ctx: AccessContext,
   facilityId: string,
   input: DocumentInput,
   now = new Date(),
+  filing: DocumentFiling = {},
 ) {
   const data = documentInput.parse(input);
   const scope = { facilityId, departmentId: data.departmentId };
@@ -293,6 +304,12 @@ export async function createDocument(
     !(await listDepartments(ctx, facilityId)).some((d) => d.id === data.departmentId)
   ) {
     throw new DomainError<DocumentError>("unknownDepartment");
+  }
+  const elements: { id: string; code: string }[] = [];
+  for (const elementId of new Set(filing.elementIds ?? [])) {
+    const element = await getFacilityElement(ctx, facilityId, elementId);
+    if (!element) throw new DomainError<DocumentError>("unknownElement");
+    elements.push(element);
   }
   const file = await prepareFile(data);
   const documentId = uuidv7();
@@ -340,6 +357,20 @@ export async function createDocument(
         uploadedAt: now,
       });
       await auditUpload(tx, ctx, versionId, documentId, 1, file);
+      for (const element of elements) {
+        await repo.linkElement(tx, ctx.tenantId, {
+          documentId,
+          elementId: element.id,
+          createdBy: ctx.userId,
+        });
+        await recordAudit(tx, ctx, {
+          action: "link",
+          entity: "document_element",
+          entityId: documentId,
+          after: { element: element.code },
+        });
+      }
+      await filing.inTransaction?.(tx, { documentId, versionId });
     }),
   );
   return { documentId, versionId };

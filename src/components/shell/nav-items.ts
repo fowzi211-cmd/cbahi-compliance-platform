@@ -26,8 +26,6 @@ export type NavItem = {
   key: NavKey;
   href: string;
   icon: LucideIcon;
-  // Roadmap milestone that delivers the module; undefined once it is live.
-  milestone?: string;
 };
 
 export const navItems: NavItem[] = [
@@ -37,11 +35,7 @@ export const navItems: NavItem[] = [
   { key: "tracers", href: "/tracers", icon: Route },
   { key: "findings", href: "/findings", icon: ListChecks },
   { key: "documents", href: "/documents", icon: FileText },
-  { key: "committees", href: "/committees", icon: Users, milestone: "M12" },
+  { key: "committees", href: "/committees", icon: Users },
   { key: "people", href: "/people", icon: UserCog },
   { key: "settings", href: "/settings", icon: Settings },
 ];
-
-export const sectionMilestones = Object.fromEntries(
-  navItems.filter((item) => item.milestone).map((item) => [item.href.slice(1), item]),
-) as Record<string, NavItem>;

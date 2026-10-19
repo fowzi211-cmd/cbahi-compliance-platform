@@ -58,6 +58,18 @@ import {
   setFacilityFrameworks,
   setLicenseNote,
 } from "@/modules/standards/service";
+import {
+  archiveCommittee,
+  createCommittee,
+  deleteMeeting,
+  fileMinutes,
+  getCommittee,
+  getCommitteeOptions,
+  listCommittees,
+  recordMeeting,
+  setCommitteeElement,
+  updateCommittee,
+} from "@/modules/committees/service";
 import { getSurveyCycle, saveSurveyCycle } from "@/modules/surveys/service";
 import {
   archiveTemplate,
@@ -117,6 +129,9 @@ let bPendingVersionId: string;
 let bCapa: { findingId: string; itemId: string; evidenceId: string };
 let bNoticeId: string;
 let bTemplateId: string;
+let bCommitteeId: string;
+let bMeetingId: string;
+let bBareMeetingId: string;
 let bRunId: string;
 
 beforeAll(async () => {
@@ -219,6 +234,23 @@ beforeAll(async () => {
     });
     const runId = await startRun(t.ctx, templateId);
     if (t === b) [bTemplateId, bRunId] = [templateId, runId];
+  }
+
+  // A committee overseeing an element, with one meeting minuted and one not, in each tenant.
+  for (const t of [a, b]) {
+    const committeeId = await createCommittee(t.ctx, t.facility.id, {
+      nameEn: "Isolation committee",
+      frequency: "monthly",
+    });
+    await setCommitteeElement(t.ctx, committeeId, bElementId, true);
+    const meetingId = await recordMeeting(t.ctx, committeeId, { heldOn: "2026-01-10" });
+    await fileMinutes(t.ctx, meetingId, {
+      titleEn: "Isolation minutes",
+      file: { name: "minutes.pdf", bytes: makePdf(["Demo minutes", randomUUID()]) },
+      phiAttested: true,
+    });
+    const bareId = await recordMeeting(t.ctx, committeeId, { heldOn: "2026-02-10" });
+    if (t === b) [bCommitteeId, bMeetingId, bBareMeetingId] = [committeeId, meetingId, bareId];
   }
 });
 
@@ -480,6 +512,40 @@ describe("service layer with a fooled permission check", () => {
     expect((await getRun(b.ctx, bRunId))!.sheet.progress.scored).toBe(0);
   });
 
+  it("cannot read or change another tenant's committees and meetings", async () => {
+    expect(await listCommittees(aForged, b.facility.id)).toEqual({
+      committees: [],
+      canManage: false,
+    });
+    expect(await getCommittee(aForged, bCommitteeId)).toBeNull();
+    expect(await getCommitteeOptions(aForged, b.facility.id)).toBeNull();
+    const minutes = {
+      titleEn: "Hijack",
+      file: { name: "m.pdf", bytes: makePdf(["Hijack", randomUUID()]) },
+      phiAttested: true,
+    };
+    for (const attempt of [
+      () => createCommittee(aForged, b.facility.id, { nameEn: "Hijack", frequency: "monthly" }),
+      () => updateCommittee(aForged, bCommitteeId, { nameEn: "Hijack", frequency: "annual" }),
+      () => setCommitteeElement(aForged, bCommitteeId, bElementId, false),
+      () => recordMeeting(aForged, bCommitteeId, { heldOn: "2026-03-01" }),
+      () => deleteMeeting(aForged, bBareMeetingId),
+      () => fileMinutes(aForged, bBareMeetingId, minutes),
+      () => archiveCommittee(aForged, bCommitteeId),
+    ]) {
+      await expect(attempt()).rejects.toThrow();
+    }
+
+    // B's committee is untouched.
+    const committee = (await getCommittee(b.ctx, bCommitteeId))!;
+    expect(committee).toMatchObject({ nameEn: "Isolation committee", frequency: "monthly" });
+    expect(committee.elements.map((e) => e.id)).toEqual([bElementId]);
+    expect(committee.meetings.map((m) => [m.id, m.minutes])).toEqual([
+      [bBareMeetingId, "missing"],
+      [bMeetingId, "inReview"],
+    ]);
+  });
+
   it("sees only its own subscription and audit trail", async () => {
     expect((await getSubscription(a.ctx))?.tenantId).toBe(a.tenant.id);
     const events = await listAuditEvents(a.ctx);
@@ -517,6 +583,9 @@ describe("database layer (RLS) on its own", () => {
     tracer_template: "tenant_id",
     tracer_template_chapter: "tenant_id",
     tracer_run: "tenant_id",
+    committee: "tenant_id",
+    committee_element: "tenant_id",
+    meeting: "tenant_id",
   };
 
   it.each(Object.entries(tenantColumn))(

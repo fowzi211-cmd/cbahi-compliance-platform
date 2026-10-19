@@ -1,7 +1,6 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Badge } from "@/components/ui/badge";
 import { Link, usePathname } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { navItems, type NavKey } from "./nav-items";
@@ -22,7 +21,7 @@ export function SidebarNav({
       <ul className="flex flex-col gap-1">
         {navItems
           .filter((item) => !hidden.includes(item.key))
-          .map(({ key, href, icon: Icon, milestone }) => {
+          .map(({ key, href, icon: Icon }) => {
             const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
             return (
               <li key={key}>
@@ -39,7 +38,6 @@ export function SidebarNav({
                 >
                   <Icon aria-hidden className="size-5 shrink-0" />
                   <span className="flex-1">{t(`nav.${key}`)}</span>
-                  {milestone && !active ? <Badge>{t("common.comingSoon")}</Badge> : null}
                 </Link>
               </li>
             );

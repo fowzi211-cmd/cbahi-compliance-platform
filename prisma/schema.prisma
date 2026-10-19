@@ -56,6 +56,9 @@ model Tenant {
   tracerTemplates      TracerTemplate[]
   tracerTemplateChaps  TracerTemplateChapter[]
   tracerRuns           TracerRun[]
+  committees           Committee[]
+  committeeElements    CommitteeElement[]
+  meetings             Meeting[]
 
   @@map("tenant")
 }
@@ -108,6 +111,7 @@ model Facility {
   capaItems       CapaItem[]
   notifications   Notification[]
   tracerTemplates TracerTemplate[]
+  committees      Committee[]
 
   @@unique([tenantId, id])
   @@index([tenantId])
@@ -445,6 +449,7 @@ model Element {
   findings      Finding[]
   documents     DocumentElement[]
   sampledIn     AssessmentElement[]
+  committees    CommitteeElement[]
 
   @@unique([frameworkId, code])
   @@index([standardId])
@@ -763,6 +768,7 @@ enum DocumentType {
   procedure
   form
   plan
+  minutes
   other
 }
 
@@ -797,6 +803,7 @@ model Document {
   department Department?       @relation(fields: [tenantId, departmentId], references: [tenantId, id], onDelete: Restrict)
   versions   DocumentVersion[]
   elements   DocumentElement[]
+  meeting    Meeting?
 
   @@unique([tenantId, id])
   @@index([tenantId, facilityId])
@@ -1089,4 +1096,75 @@ model TracerRun {
   @@unique([tenantId, assessmentId])
   @@index([tenantId, templateId, createdAt])
   @@map("tracer_run")
+}
+
+// ---------------------------------------------------------------------------
+// Committees and meeting minutes (M12). Tenant-owned: tenant_id, composite foreign keys and
+// RLS. Minutes are a document of type `minutes`, filed through the meeting they record.
+// ---------------------------------------------------------------------------
+
+enum CommitteeFrequency {
+  monthly
+  quarterly
+  semiannual
+  annual
+}
+
+model Committee {
+  id          String             @id @default(uuid(7)) @db.Uuid
+  tenantId    String             @map("tenant_id") @db.Uuid
+  facilityId  String             @map("facility_id") @db.Uuid
+  nameAr      String?            @map("name_ar")
+  nameEn      String?            @map("name_en")
+  frequency   CommitteeFrequency
+  chairUserId String?            @map("chair_user_id") @db.Uuid
+  createdBy   String?            @map("created_by") @db.Uuid
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  archivedAt  DateTime?          @map("archived_at") @db.Timestamptz(6)
+
+  tenant   Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facility Facility           @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  elements CommitteeElement[]
+  meetings Meeting[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, facilityId])
+  @@map("committee")
+}
+
+// The elements a committee oversees. Its minutes are linked to them as evidence.
+model CommitteeElement {
+  tenantId    String   @map("tenant_id") @db.Uuid
+  committeeId String   @map("committee_id") @db.Uuid
+  elementId   String   @map("element_id") @db.Uuid
+  createdBy   String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  committee Committee @relation(fields: [tenantId, committeeId], references: [tenantId, id], onDelete: Cascade)
+  element   Element   @relation(fields: [elementId], references: [id], onDelete: Restrict)
+
+  @@id([committeeId, elementId])
+  @@index([tenantId, committeeId])
+  @@map("committee_element")
+}
+
+model Meeting {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  committeeId       String   @map("committee_id") @db.Uuid
+  heldOn            DateTime @map("held_on") @db.Date
+  // The minutes document; set once, after which corrections are new versions of it.
+  minutesDocumentId String?  @map("minutes_document_id") @db.Uuid
+  createdBy         String?  @map("created_by") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  committee Committee @relation(fields: [tenantId, committeeId], references: [tenantId, id], onDelete: Cascade)
+  minutes   Document? @relation(fields: [tenantId, minutesDocumentId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([committeeId, heldOn])
+  @@unique([tenantId, minutesDocumentId])
+  @@index([tenantId, committeeId])
+  @@map("meeting")
 }

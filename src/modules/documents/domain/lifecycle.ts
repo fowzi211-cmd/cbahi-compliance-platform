@@ -1,7 +1,8 @@
 // Rule 8 (ARCHITECTURE §4): the document lifecycle. Calendar days travel as "YYYY-MM-DD"
 // strings, which compare correctly as text and cannot be shifted by a time zone.
 
-export const documentTypes = ["policy", "procedure", "form", "plan", "other"] as const;
+// `minutes` are meeting minutes (M12): a committee files them through its meeting.
+export const documentTypes = ["policy", "procedure", "form", "plan", "minutes", "other"] as const;
 export type DocumentType = (typeof documentTypes)[number];
 
 export const versionStatuses = ["in_review", "approved", "rejected", "superseded"] as const;

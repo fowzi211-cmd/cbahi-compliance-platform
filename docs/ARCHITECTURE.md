@@ -294,6 +294,12 @@ erDiagram
 - `dedupe_key` is unique per `(tenant_id, user_id)`, so daily jobs can run twice, or catch up, without sending a notice twice.
 - `notification_preference (tenant_id, user_id)` stores `email_immediate`, `email_digest` and an optional email `locale` (else the user's UI locale). Both tables are tenant-owned with RLS.
 
+**As built in M12** (differences from the diagram above):
+
+- There is no `MeetingMinute` table. Minutes are a `document` of the new type `minutes`, and `meeting.minutes_document_id` points at the document, not at one version: a correction is a new version of the same document, approved like any other, so the meeting keeps one set of minutes with its history.
+- `MeetingMinute }o--o{ Element` is `document_element`: when minutes are filed they are linked, in the same transaction, to every element the committee oversees at that moment (`committee_element`). Links made later to the committee do not reach back to older minutes, which record what the committee oversaw when it met.
+- `committee` has `chair_user_id` (optional), `created_by`, `archived_at` (dissolved committees leave the list; their meetings and minutes stay). `meeting` is unique per committee and day. A trigger keeps filed minutes on their meeting: once `minutes_document_id` is set it cannot change, the meeting cannot move or be deleted, and the document must be minutes of the committee's own facility.
+
 **Phase 2 placeholders**: tables designed, not built. `KpiDefinition` / `KpiValue` (monthly) link to elements with evidence type `kpi`. `StaffCredential` (SCFHS licence, BLS/ACLS) with expiry reminders reuses the document reminder job. `Incident`. `Crosswalk(element_a, element_b, relation)`. `SeasonalCycle` (a facility with `active_from`/`active_to` and time-bounded snapshots). The benchmarking view aggregates `ElementStatus` across tenants with k-anonymity (no result for groups smaller than 5 facilities).
 
 ## 4. Core business rules (pure functions, fully unit-tested)
@@ -337,6 +343,12 @@ erDiagram
 - _Results._ A run is scored like any assessment (rule 1: Met and Partially Met need evidence, here an observation, interview or record review), and submitting it updates `ElementStatus`, raises findings and verifies closed ones exactly as a self-assessment does. Every sampled element must be checked before submitting.
 - _Who._ `tracer.manage` (owner and quality manager facility-wide, department head for their department) creates and archives templates. `tracer.run` adds the assignee: a staff member assigned to a template can start and walk its runs. A run started by a manager is assigned to the template's assignee if there is one. Self-assessment lists leave tracer runs out; they have their own screen.
 
+**As built in M12** (`committees/domain/`, `committees/service.ts`):
+
+- _Schedule._ Frequencies are monthly, quarterly, every six months and yearly. The next meeting is due one period after the last meeting held (calendar months, kept to the last day of a shorter month), or one period after the committee was formed if it has not met. It shows as due soon from 14 days before and overdue from the day after. Only meetings that took place are recorded: a date after today (Riyadh) is refused.
+- _Minutes as evidence._ Filing minutes creates a facility-wide `minutes` document through document control (attestation, PHI scan, approval), in force from the meeting day and linked to the overseen elements. Once approved, the minutes are a citable version for those elements under rule 8, offered first in the score form like any linked document. One set of minutes per meeting; a meeting with minutes cannot be deleted.
+- _Who._ `committee.manage` (owner and quality manager, facility-wide) creates, edits and dissolves committees, chooses the elements they oversee, records meetings and files minutes. Approving minutes follows `document.approve`. Every member of the facility can read committees and meetings. Meeting reminders are not built.
+
 **As built in M8** (`documents/domain/`, `documents/service.ts`):
 
 - _Document lifecycle (rule 8)._ An approved version is _current_, _due for review_ from its review date (still in force: review is a reminder), and _expired_ the day after its expiry date (a cut-off). Only a current or review-due version of a document that is not retired can be cited; an expired one is refused. Dates must run effective → review → expiry. A rejection needs a comment. Uploaders may approve their own version; the audit event records `selfApproved` so a reviewer can see it. Review and expiry reminders arrive with the notification jobs (M10): review-due and expiring-soon (30 days before expiry) go into the daily digest, and expiry is an immediate notice, to the document owner, quality managers and facility owners. Showing the elements whose cited document has expired moves to the M13 readiness view, which computes it from the dates rather than storing a flag.
@@ -372,6 +384,7 @@ erDiagram
 | Tracer: run                            | ✓     | ✓           | own dept  | ✓ (assigned) | –             | –      |
 | Tracer: templates                      | ✓     | ✓           | own dept  | –            | –             | –      |
 | Mock survey: run and lock              | –     | internal    | –         | –            | ✓             | –      |
+| Committees: manage, record meetings    | ✓     | ✓           | –         | –            | –             | –      |
 | Documents: upload                      | ✓     | ✓           | own dept  | ✓            | –             | –      |
 | Documents: approve                     | ✓     | ✓           | –         | –            | –             | –      |
 | CAPA: create and assign                | ✓     | ✓           | own dept  | –            | ✓ (recommend) | –      |
