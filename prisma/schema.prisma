@@ -34,6 +34,7 @@ model Tenant {
   facilities   Facility[]
   departments  Department[]
   memberships  Membership[]
+  invitations  Invitation[]
   auditEvents  AuditEvent[]
 
   @@map("tenant")
@@ -70,6 +71,7 @@ model Facility {
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   departments Department[]
   memberships Membership[]
+  invitations Invitation[]
 
   @@unique([tenantId, id])
   @@index([tenantId])
@@ -90,6 +92,7 @@ model Department {
   // Composite key: a department can never point at another tenant's facility.
   facility    Facility     @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
   memberships Membership[]
+  invitations Invitation[]
 
   @@unique([tenantId, id])
   @@index([tenantId, facilityId])
@@ -98,19 +101,97 @@ model Department {
 
 // Users are global: one person can hold roles in several tenants (e.g. a quality manager
 // working for two clinic groups). What they can see is decided by Membership.
+// The email/name/emailVerified/image/twoFactorEnabled fields are the shape Better Auth expects.
 model User {
-  id                   String   @id @default(uuid(7)) @db.Uuid
-  email                String   @unique
+  id                   String    @id @default(uuid(7)) @db.Uuid
+  email                String    @unique
   name                 String
-  locale               String   @default("ar")
-  isPlatformAdmin      Boolean  @default(false) @map("is_platform_admin")
-  isPlatformConsultant Boolean  @default(false) @map("is_platform_consultant")
-  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  emailVerified        Boolean   @default(false) @map("email_verified")
+  image                String?
+  locale               String    @default("ar")
+  isPlatformAdmin      Boolean   @default(false) @map("is_platform_admin")
+  isPlatformConsultant Boolean   @default(false) @map("is_platform_consultant")
+  twoFactorEnabled     Boolean   @default(false) @map("two_factor_enabled")
+  // Password lockout (docs/ARCHITECTURE.md §6). The second factor has its own counter on TwoFactor.
+  failedLoginCount     Int       @default(0) @map("failed_login_count")
+  lockedUntil          DateTime? @map("locked_until") @db.Timestamptz(6)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   memberships Membership[]
+  sessions    Session[]
+  accounts    Account[]
+  twoFactors  TwoFactor[]
 
   @@map("app_user")
+}
+
+// Better Auth tables. Only the `mustamir_auth` database role can read them: the app role
+// never sees password hashes, session tokens or TOTP secrets.
+model Session {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  token     String   @unique
+  userId    String   @map("user_id") @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_session")
+}
+
+model Account {
+  id                    String    @id @default(uuid(7)) @db.Uuid
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id") @db.Uuid
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(6)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(6)
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_account")
+}
+
+model Verification {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([identifier])
+  @@map("auth_verification")
+}
+
+model TwoFactor {
+  id                      String    @id @default(uuid(7)) @db.Uuid
+  userId                  String    @map("user_id") @db.Uuid
+  // Encrypted by Better Auth with BETTER_AUTH_SECRET.
+  secret                  String
+  backupCodes             String    @map("backup_codes")
+  verified                Boolean   @default(true)
+  failedVerificationCount Int       @default(0) @map("failed_verification_count")
+  lockedUntil             DateTime? @map("locked_until") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([secret])
+  @@map("auth_two_factor")
 }
 
 model Membership {
@@ -131,6 +212,33 @@ model Membership {
   @@unique([userId, facilityId, role])
   @@index([tenantId, facilityId])
   @@map("membership")
+}
+
+// An invitation into one facility role. Only a SHA-256 hash of the token is stored, so a
+// database leak cannot be turned into working invitation links.
+model Invitation {
+  id           String         @id @default(uuid(7)) @db.Uuid
+  tenantId     String         @map("tenant_id") @db.Uuid
+  facilityId   String         @map("facility_id") @db.Uuid
+  departmentId String?        @map("department_id") @db.Uuid
+  email        String
+  role         MembershipRole
+  locale       String         @default("ar")
+  tokenHash    Bytes          @unique @map("token_hash")
+  invitedBy    String?        @map("invited_by") @db.Uuid
+  expiresAt    DateTime       @map("expires_at") @db.Timestamptz(6)
+  acceptedAt   DateTime?      @map("accepted_at") @db.Timestamptz(6)
+  acceptedBy   String?        @map("accepted_by") @db.Uuid
+  revokedAt    DateTime?      @map("revoked_at") @db.Timestamptz(6)
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facility   Facility    @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  department Department? @relation(fields: [tenantId, departmentId], references: [tenantId, id], onDelete: Cascade)
+
+  @@index([tenantId, facilityId])
+  @@map("invitation")
 }
 
 // Append-only. A database trigger rejects UPDATE and DELETE, stamps `at` with the server

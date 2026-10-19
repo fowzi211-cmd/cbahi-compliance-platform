@@ -9,7 +9,6 @@ import type { Metadata } from "next";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { AppShell } from "@/components/shell/app-shell";
 import { localeDirection, routing } from "@/i18n/routing";
 
 export function generateStaticParams() {
@@ -30,9 +29,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   return (
     <html lang={locale} dir={localeDirection[locale]} className="h-full antialiased">
       <body className="min-h-full">
-        <NextIntlClientProvider>
-          <AppShell>{children}</AppShell>
-        </NextIntlClientProvider>
+        <NextIntlClientProvider>{children}</NextIntlClientProvider>
       </body>
     </html>
   );

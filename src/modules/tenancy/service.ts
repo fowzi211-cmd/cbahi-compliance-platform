@@ -1,5 +1,26 @@
-import { withSystem, withTenant, type TenantContext } from "@/lib/db";
+import { createHash, randomBytes } from "node:crypto";
+import { withoutTenant, withSystem, withTenant, type TenantContext } from "@/lib/db";
+import { DomainError, ForbiddenError } from "@/lib/errors";
 import { recordAudit, recordPlatformAudit } from "@/modules/audit/service";
+import {
+  createOrganizationInput,
+  invitationExpiry,
+  invitationStatus,
+  inviteInput,
+  sameEmail,
+  type CreateOrganizationInput,
+  type InvitationStatus,
+  type InviteInput,
+} from "./domain/invitations";
+import {
+  assignableRoles,
+  can,
+  canAssignRole,
+  rolesInFacility,
+  type Action,
+  type Actor,
+  type Resource,
+} from "./domain/policy";
 import {
   createTenantInput,
   departmentInput,
@@ -9,11 +30,63 @@ import {
   type DepartmentInput,
   type FacilityInput,
   type MembershipInput,
+  type MembershipRole,
 } from "./domain/schemas";
+import { sendInvitationEmail } from "./invitation-email";
 import * as repo from "./repo";
 
-// Permission checks (`can(ctx, action, resource)`) are added in M3 when authentication lands.
-// Until then these services are only reachable from tests and seeds.
+export type { Action, Actor, Resource } from "./domain/policy";
+export type { InvitationStatus } from "./domain/invitations";
+export type { MembershipRole } from "./domain/schemas";
+export { membershipRoles } from "./domain/schemas";
+
+/**
+ * Who is acting, in which tenant, and what they hold there. Built from the session by
+ * `loadAccessContext`; services check it with `can()` before touching data.
+ */
+export type AccessContext = TenantContext & { userId: string; actor: Actor };
+
+export function allowed(ctx: AccessContext, action: Action, resource: Resource): boolean {
+  return can(ctx.actor, action, resource);
+}
+
+function authorize(ctx: AccessContext, action: Action, resource: Resource) {
+  if (!can(ctx.actor, action, resource)) throw new ForbiddenError(action);
+}
+
+function isMemberOf(ctx: AccessContext, facilityId: string) {
+  return rolesInFacility(ctx.actor, facilityId).length > 0;
+}
+
+// --- Sessions and access ----------------------------------------------------------------------
+
+/** Every facility role the user holds, across tenants. Keyed by the verified session's user. */
+export function listUserMemberships(userId: string) {
+  return withoutTenant((tx) => repo.listUserMemberships(tx, userId));
+}
+
+/** The access context for one tenant, or null when the user holds nothing there. */
+export async function loadAccessContext(
+  userId: string,
+  tenantId: string,
+): Promise<AccessContext | null> {
+  const memberships = (await listUserMemberships(userId)).filter((m) => m.tenantId === tenantId);
+  if (memberships.length === 0) return null;
+  return {
+    tenantId,
+    userId,
+    actor: {
+      userId,
+      memberships: memberships.map(({ facilityId, departmentId, role }) => ({
+        facilityId,
+        departmentId,
+        role,
+      })),
+      // Consultant assignments arrive with M14.
+      consultantFacilityIds: [],
+    },
+  };
+}
 
 /**
  * Creates a tenant with its subscription, first facility and owner membership. This spans
@@ -59,34 +132,82 @@ export async function createTenant(input: CreateTenantInput, actorUserId: string
   });
 }
 
-export function createFacility(ctx: TenantContext, input: FacilityInput) {
+/**
+ * Self-service start: a signed-in person with no facility yet creates their organization and
+ * becomes owner of its first facility. Someone who already belongs to a facility must be
+ * invited to others, so one account cannot spin up organizations at will.
+ */
+export async function createOrganization(
+  user: { id: string; email: string; name: string },
+  input: CreateOrganizationInput,
+) {
+  const data = createOrganizationInput.parse(input);
+  if ((await listUserMemberships(user.id)).length > 0) {
+    throw new DomainError("alreadyMember");
+  }
+  return createTenant(
+    {
+      name: data.organizationName,
+      owner: { email: user.email, name: user.name },
+      facility: {
+        nameAr: data.facilityNameAr,
+        nameEn: data.facilityNameEn,
+        type: data.facilityType,
+      },
+    },
+    user.id,
+  );
+}
+
+/** Adding a facility is an organization-level decision, so it needs an owner. */
+export async function createFacility(ctx: AccessContext, input: FacilityInput) {
+  if (!ctx.actor.memberships.some((m) => m.role === "facility_owner")) {
+    throw new ForbiddenError("facility.create");
+  }
   const data = facilityInput.parse(input);
   return withTenant(ctx, async (tx) => {
     const facility = await repo.insertFacility(tx, ctx.tenantId, data);
+    // The creator owns the new facility, otherwise nobody could manage it.
+    const membership = await repo.insertMembership(tx, ctx.tenantId, {
+      userId: ctx.userId,
+      facilityId: facility.id,
+      role: "facility_owner",
+    });
     await recordAudit(tx, ctx, {
       action: "create",
       entity: "facility",
       entityId: facility.id,
       after: facility,
     });
+    await recordAudit(tx, ctx, {
+      action: "create",
+      entity: "membership",
+      entityId: membership.id,
+      after: membership,
+    });
     return facility;
   });
 }
 
-export function getFacility(ctx: TenantContext, facilityId: string) {
+/** Null when the facility does not exist for this tenant or the caller holds no role in it. */
+export async function getFacility(ctx: AccessContext, facilityId: string) {
+  if (!isMemberOf(ctx, facilityId)) return null;
   return withTenant(ctx, (tx) => repo.findFacility(tx, ctx.tenantId, facilityId));
 }
 
-export function listFacilities(ctx: TenantContext) {
-  return withTenant(ctx, (tx) => repo.listFacilities(tx, ctx.tenantId));
+/** The facilities of this tenant that the caller holds a role in. */
+export async function listFacilities(ctx: AccessContext) {
+  const facilities = await withTenant(ctx, (tx) => repo.listFacilities(tx, ctx.tenantId));
+  return facilities.filter((f) => isMemberOf(ctx, f.id));
 }
 
 /** Returns false when the facility does not exist for this tenant (including another tenant's). */
-export function renameFacility(
-  ctx: TenantContext,
+export async function renameFacility(
+  ctx: AccessContext,
   facilityId: string,
   names: Pick<FacilityInput, "nameAr" | "nameEn">,
 ) {
+  authorize(ctx, "facility.updateSettings", { facilityId });
   const data = facilityInput.pick({ nameAr: true, nameEn: true }).parse(names);
   return withTenant(ctx, async (tx) => {
     const before = await repo.findFacility(tx, ctx.tenantId, facilityId);
@@ -103,8 +224,9 @@ export function renameFacility(
   });
 }
 
-export function createDepartment(ctx: TenantContext, input: DepartmentInput) {
+export async function createDepartment(ctx: AccessContext, input: DepartmentInput) {
   const data = departmentInput.parse(input);
+  authorize(ctx, "facility.updateSettings", { facilityId: data.facilityId });
   return withTenant(ctx, async (tx) => {
     const department = await repo.insertDepartment(tx, ctx.tenantId, data);
     await recordAudit(tx, ctx, {
@@ -117,12 +239,18 @@ export function createDepartment(ctx: TenantContext, input: DepartmentInput) {
   });
 }
 
-export function listDepartments(ctx: TenantContext, facilityId: string) {
+export async function listDepartments(ctx: AccessContext, facilityId: string) {
+  if (!isMemberOf(ctx, facilityId)) return [];
   return withTenant(ctx, (tx) => repo.listDepartments(tx, ctx.tenantId, facilityId));
 }
 
-export function addMembership(ctx: TenantContext, input: MembershipInput) {
+/** Grants a role directly (platform tooling and seeds); people normally join by invitation. */
+export async function addMembership(ctx: AccessContext, input: MembershipInput) {
   const data = membershipInput.parse(input);
+  authorize(ctx, "membership.manage", { facilityId: data.facilityId });
+  if (!canAssignRole(ctx.actor, data.facilityId, data.role)) {
+    throw new ForbiddenError(`membership.assign.${data.role}`);
+  }
   return withTenant(ctx, async (tx) => {
     const membership = await repo.insertMembership(tx, ctx.tenantId, data);
     await recordAudit(tx, ctx, {
@@ -135,10 +263,186 @@ export function addMembership(ctx: TenantContext, input: MembershipInput) {
   });
 }
 
-export function listMemberships(ctx: TenantContext, facilityId: string) {
+export async function listMemberships(ctx: AccessContext, facilityId: string) {
+  if (!isMemberOf(ctx, facilityId)) return [];
   return withTenant(ctx, (tx) => repo.listMemberships(tx, ctx.tenantId, facilityId));
 }
 
-export function getSubscription(ctx: TenantContext) {
+/** Members with their names and emails, for the people screen. */
+export async function listFacilityMembers(ctx: AccessContext, facilityId: string) {
+  authorize(ctx, "membership.manage", { facilityId });
+  return withTenant(ctx, (tx) => repo.listFacilityMembers(tx, ctx.tenantId, facilityId));
+}
+
+export function getSubscription(ctx: AccessContext) {
   return withTenant(ctx, (tx) => repo.findSubscription(tx, ctx.tenantId));
+}
+
+// --- Invitations ------------------------------------------------------------------------------
+
+export { assignableRoles };
+
+const hashToken = (token: string) =>
+  new Uint8Array(createHash("sha256").update(token, "utf8").digest());
+
+/**
+ * Invites someone by email into one facility role. The link carries a random token; only its
+ * hash is stored. Re-inviting the same person to the same role revokes the earlier link.
+ */
+export async function inviteMember(ctx: AccessContext, input: InviteInput, now = new Date()) {
+  const data = inviteInput.parse(input);
+  authorize(ctx, "membership.manage", { facilityId: data.facilityId });
+  if (!canAssignRole(ctx.actor, data.facilityId, data.role)) {
+    throw new ForbiddenError(`membership.assign.${data.role}`);
+  }
+
+  const token = randomBytes(32).toString("base64url");
+  const { invitation, facility, inviter } = await withTenant(ctx, async (tx) => {
+    const facility = await repo.findFacility(tx, ctx.tenantId, data.facilityId);
+    if (!facility) throw new ForbiddenError("membership.manage");
+    if (data.departmentId) {
+      const departments = await repo.listDepartments(tx, ctx.tenantId, data.facilityId);
+      if (!departments.some((d) => d.id === data.departmentId)) {
+        throw new DomainError("unknownDepartment");
+      }
+    }
+    await repo.revokeOpenInvitations(tx, ctx.tenantId, data, now);
+    const invitation = await repo.insertInvitation(tx, ctx.tenantId, {
+      facilityId: data.facilityId,
+      departmentId: data.departmentId,
+      email: data.email,
+      role: data.role,
+      locale: data.locale,
+      tokenHash: hashToken(token),
+      invitedBy: ctx.userId,
+      expiresAt: invitationExpiry(now),
+    });
+    await recordAudit(tx, ctx, {
+      action: "create",
+      entity: "invitation",
+      entityId: invitation.id,
+      after: { email: data.email, role: data.role, facilityId: data.facilityId },
+    });
+    const inviter = await repo.findUser(tx, ctx.userId);
+    return { invitation, facility, inviter };
+  });
+
+  await sendInvitationEmail({
+    to: data.email,
+    locale: data.locale,
+    token,
+    role: data.role,
+    facilityName: data.locale === "ar" ? facility.nameAr : facility.nameEn,
+    inviterName: inviter?.name ?? "",
+  });
+  return { invitation, token };
+}
+
+export async function listOpenInvitations(
+  ctx: AccessContext,
+  facilityId: string,
+  now = new Date(),
+) {
+  authorize(ctx, "membership.manage", { facilityId });
+  return withTenant(ctx, (tx) => repo.listOpenInvitations(tx, ctx.tenantId, facilityId, now));
+}
+
+/** Returns false when there is no open invitation with that id in this tenant. */
+export function revokeInvitation(ctx: AccessContext, invitationId: string, now = new Date()) {
+  return withTenant(ctx, async (tx) => {
+    const invitation = await repo.findInvitation(tx, ctx.tenantId, invitationId);
+    if (!invitation) return false;
+    authorize(ctx, "membership.manage", { facilityId: invitation.facilityId });
+    const { count } = await repo.revokeInvitation(tx, ctx.tenantId, invitationId, now);
+    if (count === 0) return false;
+    await recordAudit(tx, ctx, {
+      action: "revoke",
+      entity: "invitation",
+      entityId: invitationId,
+      before: { email: invitation.email, role: invitation.role },
+    });
+    return true;
+  });
+}
+
+export type InvitationSummary = {
+  email: string;
+  role: MembershipRole;
+  facilityNameAr: string;
+  facilityNameEn: string;
+  expiresAt: Date;
+  status: InvitationStatus;
+};
+
+/** What the invitation page shows before anyone signs in. Null for an unknown token. */
+export async function findInvitationByToken(
+  token: string,
+  now = new Date(),
+): Promise<InvitationSummary | null> {
+  const row = await withoutTenant((tx) => repo.findInvitationByTokenHash(tx, hashToken(token)));
+  if (!row) return null;
+  return {
+    email: row.email,
+    role: row.role,
+    facilityNameAr: row.facilityNameAr,
+    facilityNameEn: row.facilityNameEn,
+    expiresAt: row.expiresAt,
+    status: invitationStatus(row, now),
+  };
+}
+
+export type AcceptInvitationError = "notFound" | "expired" | "revoked" | "accepted" | "wrongEmail";
+
+/**
+ * Turns an invitation into a membership for the signed-in user. The token proves access to
+ * the invited mailbox, and the signed-in email must match it, so a forwarded link cannot be
+ * used by someone else.
+ */
+export async function acceptInvitation(
+  token: string,
+  user: { id: string; email: string },
+  now = new Date(),
+): Promise<{ tenantId: string; facilityId: string }> {
+  const row = await withoutTenant((tx) => repo.findInvitationByTokenHash(tx, hashToken(token)));
+  if (!row) throw new DomainError<AcceptInvitationError>("notFound");
+  const status = invitationStatus(row, now);
+  if (status !== "pending") throw new DomainError<AcceptInvitationError>(status);
+  if (!sameEmail(row.email, user.email)) throw new DomainError<AcceptInvitationError>("wrongEmail");
+
+  const ctx = { tenantId: row.tenantId, userId: user.id };
+  await withTenant(ctx, async (tx) => {
+    const invitation = await repo.findInvitation(tx, row.tenantId, row.id);
+    if (!invitation) throw new DomainError<AcceptInvitationError>("notFound");
+    if ((await repo.markInvitationAccepted(tx, row.tenantId, row.id, user.id, now)) === 0) {
+      throw new DomainError<AcceptInvitationError>("accepted");
+    }
+    const existing = await repo.findMembership(tx, row.tenantId, {
+      userId: user.id,
+      facilityId: invitation.facilityId,
+      role: invitation.role,
+    });
+    const membership =
+      existing ??
+      (await repo.insertMembership(tx, row.tenantId, {
+        userId: user.id,
+        facilityId: invitation.facilityId,
+        departmentId: invitation.departmentId ?? undefined,
+        role: invitation.role,
+      }));
+    await recordAudit(tx, ctx, {
+      action: "accept",
+      entity: "invitation",
+      entityId: invitation.id,
+      after: { membershipId: membership.id, role: invitation.role },
+    });
+    if (!existing) {
+      await recordAudit(tx, ctx, {
+        action: "create",
+        entity: "membership",
+        entityId: membership.id,
+        after: membership,
+      });
+    }
+  });
+  return { tenantId: row.tenantId, facilityId: row.facilityId };
 }

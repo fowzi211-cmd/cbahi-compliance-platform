@@ -4,7 +4,8 @@
     "tagline": "Continuous accreditation compliance for healthcare facilities",
     "skipToContent": "Skip to content",
     "comingSoon": "Coming soon",
-    "availableIn": "This module arrives in milestone {milestone}."
+    "availableIn": "This module arrives in milestone {milestone}.",
+    "loading": "Loading…"
   },
   "nav": {
     "label": "Main navigation",
@@ -17,12 +18,15 @@
     "committees": "Committees",
     "settings": "Settings",
     "openMenu": "Open menu",
-    "closeMenu": "Close menu"
+    "closeMenu": "Close menu",
+    "people": "People & access"
   },
   "shell": {
     "switchLocale": "العربية",
     "switchLocaleLabel": "Switch to Arabic",
-    "today": "Today"
+    "today": "Today",
+    "signOut": "Sign out",
+    "facility": "Facility"
   },
   "dashboard": {
     "title": "Readiness dashboard",
@@ -34,5 +38,152 @@
     "title": "Page not found",
     "body": "Check the link or go back to the readiness dashboard.",
     "back": "Back to the readiness dashboard"
+  },
+  "roles": {
+    "facility_owner": "Facility owner",
+    "quality_manager": "Quality manager",
+    "department_head": "Department head",
+    "staff": "Staff",
+    "viewer": "Viewer"
+  },
+  "auth": {
+    "fields": {
+      "email": "Email",
+      "password": "Password",
+      "name": "Full name"
+    },
+    "errors": {
+      "invalidCredentials": "The email or password is incorrect.",
+      "accountLocked": "Too many failed attempts. The account is locked for 15 minutes.",
+      "emailTaken": "An account with this email already exists. Sign in instead.",
+      "passwordTooShort": "The password must be at least 12 characters.",
+      "passwordTooLong": "The password must be at most 128 characters.",
+      "invalidCode": "That code is not valid. Check the time on your phone and try again.",
+      "tooManyRequests": "Too many attempts. Wait a minute and try again.",
+      "generic": "Something went wrong. Try again."
+    },
+    "signIn": {
+      "title": "Sign in",
+      "submit": "Sign in",
+      "expired": "Your session ended. Sign in again to continue.",
+      "noAccount": "New to Mustamir?",
+      "createAccount": "Create an account"
+    },
+    "verify": {
+      "title": "Two-step verification",
+      "intro": "Enter the 6-digit code from your authenticator app.",
+      "code": "Verification code",
+      "codeHint": "The code changes every 30 seconds.",
+      "backupCode": "Backup code",
+      "backupHint": "Each backup code works once.",
+      "submit": "Verify",
+      "useApp": "Use the authenticator app",
+      "useBackup": "Use a backup code"
+    },
+    "signUp": {
+      "title": "Create an account",
+      "intro": "Create your account, then set up your organization and first facility.",
+      "introInvited": "Create your account to accept the invitation.",
+      "passwordHint": "At least 12 characters. A short sentence is easy to remember and hard to guess.",
+      "submit": "Create account",
+      "haveAccount": "Already have an account?",
+      "signIn": "Sign in"
+    },
+    "mfa": {
+      "title": "Set up two-step verification",
+      "requiredIntro": "Your role can change access and approve evidence, so it needs a second step at sign-in. You will need an authenticator app on your phone.",
+      "optionalIntro": "Add a second step at sign-in with an authenticator app on your phone.",
+      "confirmPassword": "Confirm your password",
+      "start": "Continue",
+      "scan": "Scan this code with your authenticator app.",
+      "qrAlt": "QR code for your authenticator app",
+      "manualEntry": "Can't scan? Enter this key instead:",
+      "saveBackupCodes": "Save these backup codes somewhere safe. Each one lets you sign in once if you lose your phone.",
+      "enterCode": "Enter the 6-digit code from the app",
+      "finish": "Turn on two-step verification"
+    }
+  },
+  "setup": {
+    "title": "Set up your organization",
+    "intro": "Name your organization and its first facility. You can add departments and invite your team next.",
+    "organizationName": "Organization name",
+    "facilityNameAr": "Facility name in Arabic",
+    "facilityNameEn": "Facility name in English",
+    "facilityType": "Facility type",
+    "facilityTypeHint": "Used later to decide which standards apply.",
+    "submit": "Create organization",
+    "facilityTypes": {
+      "hospital": "Hospital",
+      "polyclinic": "Polyclinic",
+      "primary_care": "Primary care center",
+      "dental": "Dental center",
+      "laboratory": "Laboratory",
+      "home_care": "Home care",
+      "other": "Other"
+    },
+    "errors": {
+      "alreadyMember": "You already belong to a facility. Ask its owner to invite you to others.",
+      "invalid": "Check the fields and try again.",
+      "forbidden": "You are not allowed to do this."
+    }
+  },
+  "invite": {
+    "title": "Invitation",
+    "summary": "You are invited to join <strong>{facility}</strong> as <strong>{role}</strong>.",
+    "forEmail": "This invitation is for <bdi>{email}</bdi>.",
+    "createAccount": "Create an account and accept",
+    "haveAccount": "I already have an account",
+    "accept": "Accept invitation",
+    "wrongAccount": "You are signed in as <bdi>{email}</bdi>. Sign out, then sign in with the invited email.",
+    "goToSignIn": "Go to sign in",
+    "errors": {
+      "notFound": "This invitation link is not valid.",
+      "expired": "This invitation has expired. Ask for a new one.",
+      "revoked": "This invitation was withdrawn.",
+      "accepted": "This invitation has already been used.",
+      "wrongEmail": "This invitation is for a different email address.",
+      "invalid": "This invitation link is not valid.",
+      "forbidden": "You are not allowed to do this."
+    }
+  },
+  "people": {
+    "intro": "Invite people to this facility and choose what they can do.",
+    "forbidden": "Only the facility owner and the quality manager can manage people.",
+    "invite": {
+      "title": "Invite someone",
+      "role": "Role",
+      "language": "Email language",
+      "department": "Department",
+      "noDepartment": "No department",
+      "noDepartmentsYet": "No departments yet. Department heads need one; departments arrive with facility setup.",
+      "departmentHint": "Department heads see and act on their own department only.",
+      "submit": "Send invitation",
+      "sent": "Invitation sent."
+    },
+    "members": {
+      "title": "Members"
+    },
+    "invitations": {
+      "title": "Pending invitations",
+      "empty": "No pending invitations.",
+      "details": "{role} · expires {date}",
+      "revoke": "Withdraw"
+    },
+    "errors": {
+      "forbidden": "You cannot give this role.",
+      "invalid": "Check the email and the role.",
+      "unknownDepartment": "Choose a department of this facility.",
+      "generic": "Something went wrong. Try again."
+    }
+  },
+  "email": {
+    "invitation": {
+      "subject": "Invitation to join {facility} on Mustamir",
+      "greeting": "Hello,",
+      "body": "{inviter} invited you to join {facility} on Mustamir as {role}.",
+      "action": "Accept the invitation",
+      "expiry": "The link works for 7 days.",
+      "ignore": "If you were not expecting this email, you can ignore it."
+    }
   }
 }

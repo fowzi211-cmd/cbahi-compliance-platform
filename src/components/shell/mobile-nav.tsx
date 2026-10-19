@@ -5,10 +5,11 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
+import type { NavKey } from "./nav-items";
 import { SidebarNav } from "./sidebar-nav";
 
 // The sidebar becomes a drawer on phones, where department heads run tracers.
-export function MobileNav() {
+export function MobileNav({ hidden }: { hidden?: readonly NavKey[] }) {
   const t = useTranslations("nav");
   const [open, setOpen] = useState(false);
 
@@ -55,7 +56,7 @@ export function MobileNav() {
                     <X aria-hidden />
                   </Button>
                 </div>
-                <SidebarNav onNavigate={() => setOpen(false)} />
+                <SidebarNav hidden={hidden} onNavigate={() => setOpen(false)} />
               </div>
             </div>,
             document.body,

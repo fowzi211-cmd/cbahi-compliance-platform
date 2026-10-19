@@ -23,6 +23,10 @@ pnpm db:setup             # database roles + migrations
 pnpm dev                  # http://localhost:3000
 ```
 
+Then open http://localhost:3000, create an account and set up your organization. Owners and
+quality managers must turn on two-step verification with an authenticator app (any TOTP app
+works). Invitation emails land in Mailpit at http://localhost:8025.
+
 Local services:
 
 | Service    | Purpose                                  | Address                                           |
@@ -37,7 +41,7 @@ Stop everything with `docker compose down` (add `-v` to wipe data).
 
 ```bash
 pnpm check        # lint, typecheck, formatting, i18n parity, unit + integration tests
-pnpm test:int     # integration tests on a real PostgreSQL (tenant isolation, audit log)
+pnpm test:int     # integration tests on a real PostgreSQL (tenant isolation, audit log, auth)
 pnpm test         # unit tests (Vitest)
 pnpm test:e2e     # end-to-end tests (Playwright, desktop + mobile viewports)
 ```

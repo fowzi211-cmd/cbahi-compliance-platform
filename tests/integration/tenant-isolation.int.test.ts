@@ -1,24 +1,34 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { disconnectDb, withTenant } from "@/lib/db";
+import { disconnectDb, withoutTenant, withTenant } from "@/lib/db";
+import { ForbiddenError } from "@/lib/errors";
 import { listAuditEvents } from "@/modules/audit/service";
 import {
+  acceptInvitation,
   addMembership,
   createDepartment,
   getFacility,
   getSubscription,
+  inviteMember,
   listDepartments,
   listFacilities,
   listMemberships,
+  listOpenInvitations,
+  listUserMemberships,
   renameFacility,
+  revokeInvitation,
+  type AccessContext,
 } from "@/modules/tenancy/service";
-import { makeTenant } from "./helpers";
+import { createUser, forgedContext, makeTenant, uniqueEmail } from "./helpers";
 
-// Two tenants side by side. Every read and write made as tenant A must be blind to tenant B,
-// both through the services and through raw SQL (the RLS layer on its own).
+// Two tenants side by side. Every read and write made as tenant A must be blind to tenant B
+// at three layers: the permission check, the services with a fooled permission check
+// (`aForged`), and raw SQL (the RLS layer on its own).
 let a: Awaited<ReturnType<typeof makeTenant>>;
 let b: Awaited<ReturnType<typeof makeTenant>>;
+let aForged: AccessContext;
 let bDepartmentId: string;
+let bInvitationId: string;
 
 beforeAll(async () => {
   [a, b] = await Promise.all([makeTenant("A"), makeTenant("B")]);
@@ -30,41 +40,66 @@ beforeAll(async () => {
   bDepartmentId = (
     await createDepartment(b.ctx, { facilityId: b.facility.id, nameAr: "مختبر", nameEn: "Lab" })
   ).id;
+  await inviteMember(a.ctx, {
+    facilityId: a.facility.id,
+    email: uniqueEmail("a-staff"),
+    role: "staff",
+  });
+  bInvitationId = (
+    await inviteMember(b.ctx, {
+      facilityId: b.facility.id,
+      email: uniqueEmail("b-staff"),
+      role: "staff",
+    })
+  ).invitation.id;
+  aForged = forgedContext(a.ctx, b.facility.id);
 });
 
 afterAll(disconnectDb);
 
-describe("service layer", () => {
+describe("permission layer", () => {
+  it("refuses to act on a facility the caller holds no role in", async () => {
+    await expect(
+      renameFacility(a.ctx, b.facility.id, { nameAr: "x", nameEn: "x" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(
+      inviteMember(a.ctx, { facilityId: b.facility.id, email: uniqueEmail("x"), role: "staff" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(await getFacility(a.ctx, b.facility.id)).toBeNull();
+  });
+});
+
+describe("service layer with a fooled permission check", () => {
   it("lists only the caller's facilities", async () => {
     const facilities = await listFacilities(a.ctx);
     expect(facilities.map((f) => f.id)).toEqual([a.facility.id]);
   });
 
   it("cannot read another tenant's facility by id", async () => {
-    expect(await getFacility(a.ctx, b.facility.id)).toBeNull();
+    expect(await getFacility(aForged, b.facility.id)).toBeNull();
   });
 
   it("cannot update another tenant's facility", async () => {
-    expect(await renameFacility(a.ctx, b.facility.id, { nameAr: "اختراق", nameEn: "Hijack" })).toBe(
-      false,
-    );
+    expect(
+      await renameFacility(aForged, b.facility.id, { nameAr: "اختراق", nameEn: "Hijack" }),
+    ).toBe(false);
     expect((await getFacility(b.ctx, b.facility.id))?.nameEn).toBe("Facility B");
   });
 
   it("cannot list another tenant's departments or memberships", async () => {
-    expect(await listDepartments(a.ctx, b.facility.id)).toEqual([]);
-    expect(await listMemberships(a.ctx, b.facility.id)).toEqual([]);
+    expect(await listDepartments(aForged, b.facility.id)).toEqual([]);
+    expect(await listMemberships(aForged, b.facility.id)).toEqual([]);
   });
 
   it("cannot attach a department to another tenant's facility", async () => {
     await expect(
-      createDepartment(a.ctx, { facilityId: b.facility.id, nameAr: "x", nameEn: "x" }),
+      createDepartment(aForged, { facilityId: b.facility.id, nameAr: "x", nameEn: "x" }),
     ).rejects.toThrow();
   });
 
   it("cannot grant a membership in another tenant's facility or department", async () => {
     await expect(
-      addMembership(a.ctx, { userId: a.owner.id, facilityId: b.facility.id, role: "viewer" }),
+      addMembership(aForged, { userId: a.owner.id, facilityId: b.facility.id, role: "viewer" }),
     ).rejects.toThrow();
     await expect(
       addMembership(a.ctx, {
@@ -72,6 +107,18 @@ describe("service layer", () => {
         facilityId: a.facility.id,
         departmentId: bDepartmentId,
         role: "department_head",
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("cannot list, revoke or create invitations in another tenant", async () => {
+    expect(await listOpenInvitations(aForged, b.facility.id)).toEqual([]);
+    expect(await revokeInvitation(aForged, bInvitationId)).toBe(false);
+    await expect(
+      inviteMember(aForged, {
+        facilityId: b.facility.id,
+        email: uniqueEmail("x"),
+        role: "staff",
       }),
     ).rejects.toThrow();
   });
@@ -91,6 +138,7 @@ describe("database layer (RLS) on its own", () => {
     facility: "tenant_id",
     department: "tenant_id",
     membership: "tenant_id",
+    invitation: "tenant_id",
     audit_event: "tenant_id",
   };
 
@@ -161,5 +209,38 @@ describe("database layer (RLS) on its own", () => {
       (tx) => tx.$queryRaw<{ id: string }[]>`SELECT id FROM facility`,
     );
     expect(rows.map((row) => row.id)).toEqual([b.facility.id]);
+  });
+
+  it("keeps the app role away from password hashes, sessions and TOTP secrets", async () => {
+    for (const table of ["auth_account", "auth_session", "auth_two_factor", "auth_verification"]) {
+      await expect(
+        withTenant(a.ctx, (tx) => tx.$queryRawUnsafe(`SELECT 1 FROM ${table} LIMIT 1`)),
+      ).rejects.toThrow(/permission denied/);
+    }
+  });
+
+  it("without a tenant, sees no tenant rows except through the narrow lookups", async () => {
+    const rows = await withoutTenant(
+      (tx) => tx.$queryRaw<{ n: number }[]>`SELECT count(*)::int AS n FROM membership`,
+    );
+    expect(rows[0]!.n).toBe(0);
+    const mine = await listUserMemberships(a.owner.id);
+    expect(mine.map((m) => m.tenantId)).toEqual([a.tenant.id]);
+  });
+});
+
+describe("invitations across tenants", () => {
+  it("joins only the tenant the invitation belongs to", async () => {
+    const email = uniqueEmail("joiner");
+    const { token } = await inviteMember(b.ctx, {
+      facilityId: b.facility.id,
+      email,
+      role: "viewer",
+    });
+    const joiner = await createUser(email);
+    await acceptInvitation(token, joiner);
+    expect((await listUserMemberships(joiner.id)).map((m) => m.tenantId)).toEqual([b.tenant.id]);
+    const aMembers = await listMemberships(a.ctx, a.facility.id);
+    expect(aMembers.some((m) => m.userId === joiner.id)).toBe(false);
   });
 });

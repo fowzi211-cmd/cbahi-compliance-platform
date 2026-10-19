@@ -100,4 +100,7 @@ Modules call other modules **only through `service.ts`**. `domain/` imports noth
 - Issue signed URLs only after a permission check, and give them a TTL of 5 minutes or less.
 - Raw SQL must run inside the tenant transaction wrapper (`withTenant`). Use `withSystem` only for platform-admin or cross-tenant work, and audit every write made through it.
 - RLS policies, grants and triggers live in hand-written migration SQL (Prisma cannot express them). A new tenant-owned table needs its policy in the same migration.
+- `withoutTenant()` is only for the `SECURITY DEFINER` lookups; `authDb()` only for `lib/auth.ts` and `modules/identity/repo.ts`.
+- Pages get the user and facility from `requireAppContext()` and pass `ctx.access` to services. Never build an `AccessContext` from form input.
+- Pages that read the session or search params render that part inside `<Suspense>` (Cache Components), and `generateMetadata` passes the locale to `getTranslations` explicitly.
 - Do not log document contents or personal data.

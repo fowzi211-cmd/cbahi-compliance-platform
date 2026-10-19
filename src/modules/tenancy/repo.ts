@@ -76,3 +76,180 @@ export function listMemberships(tx: Tx, tenantId: string, facilityId: string) {
 export function findSubscription(tx: Tx, tenantId: string) {
   return tx.subscription.findUnique({ where: { tenantId } });
 }
+
+// --- Cross-tenant lookups through SECURITY DEFINER functions (see the M3 migration). ---------
+
+export type UserMembershipRow = {
+  tenantId: string;
+  facilityId: string;
+  departmentId: string | null;
+  role: MembershipRole;
+  facilityNameAr: string;
+  facilityNameEn: string;
+};
+
+export async function listUserMemberships(tx: Tx, userId: string): Promise<UserMembershipRow[]> {
+  const rows = await tx.$queryRaw<
+    {
+      tenant_id: string;
+      facility_id: string;
+      department_id: string | null;
+      role: MembershipRole;
+      facility_name_ar: string;
+      facility_name_en: string;
+    }[]
+  >`SELECT * FROM app_user_memberships(${userId}::uuid)`;
+  return rows.map((row) => ({
+    tenantId: row.tenant_id,
+    facilityId: row.facility_id,
+    departmentId: row.department_id,
+    role: row.role,
+    facilityNameAr: row.facility_name_ar,
+    facilityNameEn: row.facility_name_en,
+  }));
+}
+
+export type InvitationLookupRow = {
+  id: string;
+  tenantId: string;
+  facilityId: string;
+  email: string;
+  role: MembershipRole;
+  locale: string;
+  facilityNameAr: string;
+  facilityNameEn: string;
+  expiresAt: Date;
+  acceptedAt: Date | null;
+  revokedAt: Date | null;
+};
+
+export async function findInvitationByTokenHash(
+  tx: Tx,
+  tokenHash: Uint8Array<ArrayBuffer>,
+): Promise<InvitationLookupRow | null> {
+  const rows = await tx.$queryRaw<
+    {
+      id: string;
+      tenant_id: string;
+      facility_id: string;
+      email: string;
+      role: MembershipRole;
+      locale: string;
+      facility_name_ar: string;
+      facility_name_en: string;
+      expires_at: Date;
+      accepted_at: Date | null;
+      revoked_at: Date | null;
+    }[]
+  >`SELECT * FROM app_find_invitation(${tokenHash})`;
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    facilityId: row.facility_id,
+    email: row.email,
+    role: row.role,
+    locale: row.locale,
+    facilityNameAr: row.facility_name_ar,
+    facilityNameEn: row.facility_name_en,
+    expiresAt: row.expires_at,
+    acceptedAt: row.accepted_at,
+    revokedAt: row.revoked_at,
+  };
+}
+
+// --- Members and invitations (tenant-scoped). ------------------------------------------------
+
+export function listFacilityMembers(tx: Tx, tenantId: string, facilityId: string) {
+  return tx.membership.findMany({
+    where: { tenantId, facilityId },
+    select: {
+      id: true,
+      role: true,
+      departmentId: true,
+      createdAt: true,
+      user: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+export function findMembership(
+  tx: Tx,
+  tenantId: string,
+  data: { userId: string; facilityId: string; role: MembershipRole },
+) {
+  return tx.membership.findFirst({ where: { tenantId, ...data } });
+}
+
+export function insertInvitation(
+  tx: Tx,
+  tenantId: string,
+  data: {
+    facilityId: string;
+    departmentId?: string;
+    email: string;
+    role: MembershipRole;
+    locale: string;
+    tokenHash: Uint8Array<ArrayBuffer>;
+    invitedBy: string | null;
+    expiresAt: Date;
+  },
+) {
+  return tx.invitation.create({
+    data: { ...data, tenantId },
+    omit: { tokenHash: true },
+  });
+}
+
+/** Revokes open invitations for the same person and role, so only the newest link works. */
+export function revokeOpenInvitations(
+  tx: Tx,
+  tenantId: string,
+  data: { facilityId: string; email: string; role: MembershipRole },
+  now: Date,
+) {
+  return tx.invitation.updateMany({
+    where: { tenantId, ...data, acceptedAt: null, revokedAt: null },
+    data: { revokedAt: now },
+  });
+}
+
+export function listOpenInvitations(tx: Tx, tenantId: string, facilityId: string, now: Date) {
+  return tx.invitation.findMany({
+    where: { tenantId, facilityId, acceptedAt: null, revokedAt: null, expiresAt: { gt: now } },
+    omit: { tokenHash: true },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export function findInvitation(tx: Tx, tenantId: string, id: string) {
+  return tx.invitation.findFirst({ where: { tenantId, id }, omit: { tokenHash: true } });
+}
+
+export function revokeInvitation(tx: Tx, tenantId: string, id: string, now: Date) {
+  return tx.invitation.updateMany({
+    where: { tenantId, id, acceptedAt: null, revokedAt: null },
+    data: { revokedAt: now },
+  });
+}
+
+/** Marks an invitation accepted. Returns 0 when someone else already used or revoked it. */
+export async function markInvitationAccepted(
+  tx: Tx,
+  tenantId: string,
+  id: string,
+  userId: string,
+  now: Date,
+) {
+  const result = await tx.invitation.updateMany({
+    where: { tenantId, id, acceptedAt: null, revokedAt: null, expiresAt: { gt: now } },
+    data: { acceptedAt: now, acceptedBy: userId },
+  });
+  return result.count;
+}
+
+export function findUser(tx: Tx, id: string) {
+  return tx.user.findUnique({ where: { id }, select: { id: true, name: true, email: true } });
+}

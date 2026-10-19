@@ -8,8 +8,12 @@ BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'mustamir_system') THEN
     CREATE ROLE mustamir_system NOSUPERUSER BYPASSRLS NOCREATEDB NOCREATEROLE;
   END IF;
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'mustamir_auth') THEN
+    CREATE ROLE mustamir_auth NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+  END IF;
 END
 $$;
 
 ALTER ROLE mustamir_app LOGIN PASSWORD 'mustamir_app';
 ALTER ROLE mustamir_system LOGIN PASSWORD 'mustamir_system';
+ALTER ROLE mustamir_auth LOGIN PASSWORD 'mustamir_auth';
