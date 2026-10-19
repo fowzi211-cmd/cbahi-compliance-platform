@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Design tokens. Colors are checked for WCAG AA contrast against their pair. */
+:root {
+  --background: #ffffff;
+  --foreground: #14211f;
+  --card: #ffffff;
+  --muted: #f1f5f4;
+  --muted-foreground: #4b5a57;
+  --border: #d7e0de;
+  --primary: #0b6b5d;
+  --primary-foreground: #ffffff;
+  --ring: #0b6b5d;
+  --success: #17703a;
+  --warning: #8a5300;
+  --danger: #b42318;
+  --app-font: "IBM Plex Sans Arabic", "Inter Variable", system-ui, sans-serif;
+}
+
+/* English text leads with Inter; IBM Plex Sans Arabic still covers any Arabic inside it. */
+:lang(en) {
+  --app-font: "Inter Variable", "IBM Plex Sans Arabic", system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0d1514;
+    --foreground: #e6efed;
+    --card: #131e1c;
+    --muted: #1b2826;
+    --muted-foreground: #a3b3b0;
+    --border: #2a3936;
+    --primary: #4cc3ad;
+    --primary-foreground: #06201b;
+    --ring: #4cc3ad;
+    --success: #5fd08a;
+    --warning: #f2b45a;
+    --danger: #ff8a80;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --font-sans: var(--app-font);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--app-font);
+}

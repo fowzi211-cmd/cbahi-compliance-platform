@@ -1,0 +1,38 @@
+{
+  "common": {
+    "appName": "Mustamir",
+    "tagline": "Continuous accreditation compliance for healthcare facilities",
+    "skipToContent": "Skip to content",
+    "comingSoon": "Coming soon",
+    "availableIn": "This module arrives in milestone {milestone}."
+  },
+  "nav": {
+    "label": "Main navigation",
+    "dashboard": "Readiness dashboard",
+    "standards": "Standards library",
+    "assessments": "Self-assessment",
+    "tracers": "Tracers",
+    "findings": "Findings & action plans",
+    "documents": "Documents",
+    "committees": "Committees",
+    "settings": "Settings",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "shell": {
+    "switchLocale": "العربية",
+    "switchLocaleLabel": "Switch to Arabic",
+    "today": "Today"
+  },
+  "dashboard": {
+    "title": "Readiness dashboard",
+    "intro": "This dashboard will show compliance by chapter and department, essential safety requirement status, overdue action items and the compliance trend over time.",
+    "emptyTitle": "No data yet",
+    "emptyBody": "Set up your facility, then run a first self-assessment to see results here."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "Check the link or go back to the readiness dashboard.",
+    "back": "Back to the readiness dashboard"
+  }
+}
