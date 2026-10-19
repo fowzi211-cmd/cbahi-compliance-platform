@@ -146,8 +146,10 @@ Both catalogues are tables (`facility_type`, `department_type`) and grow through
 }
 ```
 
-Every part is optional. Methods: `weighted_average`, `all_must_meet`, `threshold`. The scoring
-engine that uses it arrives in M6.
+Every part is optional. Methods: `weighted_average` (Σ weight·score / Σ weight),
+`all_must_meet` (fully met only when every child is), and `threshold` (the weighted share of fully
+met children: at or above `met_threshold` counts as met, at or above `pm_threshold` as partially
+met). How the scoring engine applies them is in ARCHITECTURE §4, "As built in M6".
 
 ## Limits
 
