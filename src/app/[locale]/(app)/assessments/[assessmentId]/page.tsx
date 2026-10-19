@@ -17,6 +17,7 @@ import {
   AssessmentSheetView,
 } from "@/modules/assessments/ui/AssessmentSheetView";
 import { SubmitAssessmentForm } from "@/modules/assessments/ui/SubmitAssessmentForm";
+import { listCitableVersions } from "@/modules/documents/service";
 import { localized } from "@/modules/standards/service";
 import { removeEvidenceAction, saveScoreAction, submitAssessmentAction } from "../actions";
 
@@ -66,6 +67,7 @@ async function AssessmentBody({
     ? name(assessment.department.nameAr, assessment.department.nameEn)
     : t("list.wholeFacility");
   const remaining = progress.total - progress.scored;
+  const documents = sheet.canScore ? await listCitableVersions(ctx.access, ctx.facilityId) : [];
 
   return (
     <>
@@ -109,6 +111,7 @@ async function AssessmentBody({
       <AssessmentSheetView
         locale={locale}
         sheet={sheet}
+        documents={documents}
         saveAction={saveScoreAction}
         removeEvidenceAction={removeEvidenceAction}
       />

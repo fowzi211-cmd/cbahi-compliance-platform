@@ -2,6 +2,7 @@ import { z } from "zod";
 import { withTenant } from "@/lib/db";
 import { DomainError, ForbiddenError } from "@/lib/errors";
 import { recordAudit } from "@/modules/audit/service";
+import { findCitableVersion } from "@/modules/documents/service";
 import { listFindings, raiseFindings } from "@/modules/findings/service";
 import {
   getScoringContent,
@@ -46,7 +47,8 @@ export type AssessmentError =
   | "nothingToScore"
   | "unknownElement"
   | "incomplete"
-  | "urlRequired"
+  | "documentRequired"
+  | "documentNotCitable"
   | "invalidUrl"
   | "noteRequired"
   | "unknownLevel"
@@ -290,6 +292,10 @@ const scoreInput = z.object({
       kind: z.enum(evidenceKinds),
       note: optionalText(evidenceLimits.note),
       url: optionalText(evidenceLimits.url),
+      documentVersionId: z
+        .union([z.uuid(), z.literal("")])
+        .nullish()
+        .transform((value) => value || null),
     })
     .nullish(),
 });
@@ -316,9 +322,24 @@ export async function saveElementScore(
   if (!element) throw new DomainError<AssessmentError>("unknownElement");
   const level = content.scale.find((l) => l.code === data.levelCode);
   if (!level) throw new DomainError<AssessmentError>("unknownLevel");
+  let evidence: (typeof data)["evidence"] = null;
   if (data.evidence) {
     const problem = evidenceProblem(data.evidence);
     if (problem) throw new DomainError<AssessmentError>(problem);
+    evidence = data.evidence;
+    if (evidence.kind !== "document") {
+      evidence = { ...evidence, documentVersionId: null };
+    } else if (evidence.documentVersionId) {
+      // Rule 8: only an approved version in force counts. A library citation replaces a link.
+      const version = await findCitableVersion(
+        ctx,
+        assessment.facilityId,
+        evidence.documentVersionId,
+        now,
+      );
+      if (!version) throw new DomainError<AssessmentError>("documentNotCitable");
+      evidence = { ...evidence, url: null };
+    }
   }
 
   return withTenant(ctx, async (tx) => {
@@ -335,11 +356,14 @@ export async function saveElementScore(
       scoredAt: now,
     });
     let evidenceId: string | null = null;
-    if (data.evidence) {
+    if (evidence) {
       evidenceId = (
         await repo.insertEvidence(tx, ctx.tenantId, {
           elementScoreId: score.id,
-          ...data.evidence,
+          kind: evidence.kind,
+          note: evidence.note,
+          url: evidence.url,
+          documentVersionId: evidence.documentVersionId,
           createdBy: ctx.userId,
         })
       ).id;
@@ -373,13 +397,18 @@ export async function saveElementScore(
         comment: data.comment,
       },
     });
-    if (data.evidence && evidenceId) {
-      // The kind and link only: notes stay in the record itself, not in the audit trail.
+    if (evidence && evidenceId) {
+      // The kind and what it points at only: notes stay in the record, not in the audit trail.
       await recordAudit(tx, ctx, {
         action: "create",
         entity: "score_evidence",
         entityId: evidenceId,
-        after: { elementScoreId: score.id, kind: data.evidence.kind, url: data.evidence.url },
+        after: {
+          elementScoreId: score.id,
+          kind: evidence.kind,
+          url: evidence.url,
+          documentVersionId: evidence.documentVersionId,
+        },
       });
     }
     return { scoreId: score.id, evidenceId };

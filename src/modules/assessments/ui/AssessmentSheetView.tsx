@@ -1,7 +1,8 @@
-import { ExternalLink } from "lucide-react";
+import { Download, ExternalLink } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardTitle } from "@/components/ui/card";
+import { getPathname } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { formatDateTime } from "@/lib/dates";
 import type { FormState } from "@/lib/form-state";
@@ -10,9 +11,16 @@ import { cn } from "@/lib/utils";
 import type { AssessmentSheet } from "../service";
 import { Localized } from "./Localized";
 import { RemoveEvidenceButton } from "./RemoveEvidenceButton";
-import { ScoreForm, type LevelOption } from "./ScoreForm";
+import { ScoreForm, type DocumentOption, type LevelOption } from "./ScoreForm";
 
 type Action = (state: FormState, form: FormData) => Promise<FormState>;
+export type CitableDocument = {
+  versionId: string;
+  version: number;
+  titleAr: string | null;
+  titleEn: string | null;
+  elementIds: string[];
+};
 type SheetElement = AssessmentSheet["chapters"][number]["standards"][number]["elements"][number];
 
 const severityVariant = {
@@ -26,15 +34,28 @@ const severityVariant = {
 export async function AssessmentSheetView({
   locale,
   sheet,
+  documents,
   saveAction,
   removeEvidenceAction,
 }: {
   locale: Locale;
   sheet: AssessmentSheet;
+  documents: CitableDocument[];
   saveAction: Action;
   removeEvidenceAction: Action;
 }) {
   const t = await getTranslations({ locale, namespace: "assessments" });
+  const documentsFor = (elementId: string): DocumentOption[] =>
+    documents
+      .map((d) => ({
+        value: d.versionId,
+        label: t("score.documentLabel", {
+          title: localized(locale, d.titleAr, d.titleEn).text,
+          version: d.version,
+        }),
+        linked: d.elementIds.includes(elementId),
+      }))
+      .sort((a, b) => Number(b.linked) - Number(a.linked));
   const levelLabel = new Map(
     sheet.scale.map((l) => [l.code, localized(locale, l.labelAr, l.labelEn).text || l.code]),
   );
@@ -72,6 +93,7 @@ export async function AssessmentSheetView({
                     levelLabel={levelLabel.get(element.score?.levelCode ?? "")}
                     sheet={sheet}
                     levels={levelsFor(element.isEsr)}
+                    documents={documentsFor(element.id)}
                     saveAction={saveAction}
                     removeEvidenceAction={removeEvidenceAction}
                     t={t}
@@ -92,6 +114,7 @@ async function ElementRow({
   levelLabel,
   sheet,
   levels,
+  documents,
   saveAction,
   removeEvidenceAction,
   t,
@@ -101,6 +124,7 @@ async function ElementRow({
   levelLabel: string | undefined;
   sheet: AssessmentSheet;
   levels: LevelOption[];
+  documents: DocumentOption[];
   saveAction: Action;
   removeEvidenceAction: Action;
   t: Awaited<ReturnType<typeof getTranslations<"assessments">>>;
@@ -158,6 +182,25 @@ async function ElementRow({
                     >
                       <span className="flex min-w-0 flex-col gap-1">
                         <span className="font-medium">{t(`evidenceKinds.${item.kind}`)}</span>
+                        {item.documentVersion && (
+                          <a
+                            href={getPathname({
+                              href: `/documents/versions/${item.documentVersion.id}/download`,
+                              locale,
+                            })}
+                            className="text-primary inline-flex items-center gap-1 hover:underline"
+                          >
+                            <Download className="size-3 shrink-0" aria-hidden />
+                            {t("score.documentLabel", {
+                              title: localized(
+                                locale,
+                                item.documentVersion.document.titleAr,
+                                item.documentVersion.document.titleEn,
+                              ).text,
+                              version: item.documentVersion.version,
+                            })}
+                          </a>
+                        )}
                         {item.note && <span dir="auto">{item.note}</span>}
                         {item.url && (
                           <a
@@ -187,6 +230,7 @@ async function ElementRow({
               levels={levels}
               current={score && { levelCode: score.levelCode, comment: score.comment }}
               isEsr={element.isEsr}
+              documents={documents}
               action={saveAction}
             />
           )}

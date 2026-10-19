@@ -9,6 +9,7 @@ import { idleState, type FormState } from "@/lib/form-state";
 import { evidenceKinds, evidenceLimits } from "../domain/assessment";
 
 export type LevelOption = { code: string; label: string; allowed: boolean };
+export type DocumentOption = { value: string; label: string; linked: boolean };
 
 /**
  * Scores one element: a level, a comment, and optionally one new piece of evidence saved
@@ -20,6 +21,7 @@ export function ScoreForm({
   levels,
   current,
   isEsr,
+  documents,
   action,
 }: {
   assessmentId: string;
@@ -27,6 +29,8 @@ export function ScoreForm({
   levels: LevelOption[];
   current: { levelCode: string; comment: string | null } | null;
   isEsr: boolean;
+  // Approved documents in force, the ones linked to this element first.
+  documents: DocumentOption[];
   action: (state: FormState, form: FormData) => Promise<FormState>;
 }) {
   const t = useTranslations("assessments");
@@ -92,6 +96,25 @@ export function ScoreForm({
             ))}
           </Select>
         </Field>
+        {documents.length > 0 && (
+          <Field>
+            <Label htmlFor={`${id}-document`}>{t("score.document")}</Label>
+            <Select
+              id={`${id}-document`}
+              name="documentVersionId"
+              defaultValue=""
+              aria-describedby={`${id}-document-hint`}
+            >
+              <option value="">{t("score.noDocument")}</option>
+              {documents.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.linked ? t("score.linkedDocument", { title: d.label }) : d.label}
+                </option>
+              ))}
+            </Select>
+            <FieldHint id={`${id}-document-hint`}>{t("score.documentHint")}</FieldHint>
+          </Field>
+        )}
         <Field>
           <Label htmlFor={`${id}-note`}>{t("score.note")}</Label>
           <Textarea

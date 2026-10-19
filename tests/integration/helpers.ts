@@ -12,6 +12,8 @@ import {
   startAssessment,
   submitAssessment,
 } from "@/modules/assessments/service";
+import { createDocument, decideVersion } from "@/modules/documents/service";
+import { makePdf } from "@/modules/documents/test-files";
 import { createTenant, loadAccessContext, type AccessContext } from "@/modules/tenancy/service";
 
 export async function makeTenant(label: string) {
@@ -155,4 +157,20 @@ export async function submitDemoAssessment(
   }
   await submitAssessment(ctx, assessmentId);
   return { assessmentId, evidenceId: evidenceId! };
+}
+
+/** Uploads and approves a fictional one-page policy; returns its ids. */
+export async function approvedDemoDocument(
+  ctx: AccessContext,
+  facilityId: string,
+  title = "Demo fridge policy",
+) {
+  const { documentId, versionId } = await createDocument(ctx, facilityId, {
+    type: "policy",
+    titleEn: title,
+    file: { name: "policy.pdf", bytes: makePdf([title, `Revision ${randomUUID()}`]) },
+    phiAttested: true,
+  });
+  await decideVersion(ctx, versionId, { decision: "approved" });
+  return { documentId, versionId };
 }

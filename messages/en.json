@@ -583,16 +583,21 @@
       "note": "Evidence description",
       "noteHint": "What you saw, heard or reviewed, without anything that identifies a patient.",
       "url": "Document link",
-      "urlHint": "Until the document library is available, cite a document by its link.",
+      "urlHint": "For a document kept outside the platform, add its link.",
       "save": "Save score",
       "saved": "Score saved.",
       "scoredOn": "Scored {date}",
       "evidenceTitle": "Evidence",
       "noEvidenceYet": "No evidence yet.",
-      "removeEvidence": "Remove evidence"
+      "removeEvidence": "Remove evidence",
+      "document": "Approved document from the library",
+      "noDocument": "No library document",
+      "documentHint": "For evidence of type “Document”. Documents linked to this element come first.",
+      "linkedDocument": "{title} (linked to this element)",
+      "documentLabel": "{title}, version {version}"
     },
     "evidenceKinds": {
-      "document": "Document (link)",
+      "document": "Document",
       "observation": "Observation",
       "interview": "Interview",
       "record_review": "Record review",
@@ -630,7 +635,8 @@
       "nothingToScore": "There are no elements to score in this scope. Check that the department has a type.",
       "unknownElement": "This element is not in the assessment's scope.",
       "incomplete": "Score every element before submitting.",
-      "urlRequired": "Add the document's link.",
+      "documentRequired": "Choose an approved document or add its link.",
+      "documentNotCitable": "That document is not approved or has expired, so it cannot be cited.",
       "invalidUrl": "The link must start with https:// or http://.",
       "noteRequired": "Describe the evidence.",
       "unknownLevel": "Choose a score.",
@@ -638,6 +644,111 @@
       "esrLevelNotAllowed": "ESR elements take only “Met” or “Not met”.",
       "evidenceRequired": "This score needs at least one piece of evidence.",
       "commentRequired": "Say in the comment why the element is not applicable."
+    }
+  },
+  "documents": {
+    "list": {
+      "title": "Documents",
+      "intro": "Policies, procedures, forms and plans, with their versions and approvals. Only the approved version in force counts as evidence in an assessment.",
+      "newTitle": "New document",
+      "heading": "Facility documents",
+      "empty": "No documents yet.",
+      "wholeFacility": "Whole facility",
+      "currentVersion": "Approved version: {version}",
+      "pendingVersion": "Version awaiting approval: {version}",
+      "linked": "Linked elements: {count}",
+      "open": "Open"
+    },
+    "types": {
+      "policy": "Policy",
+      "procedure": "Procedure",
+      "form": "Form",
+      "plan": "Plan",
+      "other": "Other"
+    },
+    "states": {
+      "current": "Approved and in force",
+      "reviewDue": "Due for review",
+      "expired": "Expired",
+      "pending": "Awaiting approval",
+      "rejected": "Rejected",
+      "superseded": "Replaced by a newer version",
+      "retired": "Retired",
+      "none": "No approved version"
+    },
+    "upload": {
+      "type": "Document type",
+      "owner": "Owner",
+      "titleAr": "Title in Arabic",
+      "titleEn": "Title in English",
+      "file": "File",
+      "fileHint": "PDF, Word, Excel or an image, up to 10 MB.",
+      "effectiveOn": "Effective date",
+      "reviewOn": "Review date",
+      "expiresOn": "Expiry date",
+      "changeNote": "What changed in this version",
+      "attestation": "I confirm this file holds no data that identifies a patient (a name with an ID number, a medical record number or a date of birth).",
+      "phiExplain": "The scan found text that looks like patient data (a national ID or Iqama number, a medical record number or a date of birth). The file was not saved. Remove that data from the file, or confirm below that it is not patient data and upload again.",
+      "phiConfirm": "I have checked the file and confirm it holds no patient data, or that it has been redacted.",
+      "submitDocument": "Upload document",
+      "submitVersion": "Upload version",
+      "uploaded": "Version uploaded and awaiting approval."
+    },
+    "detail": {
+      "back": "All documents",
+      "versions": "Versions",
+      "version": "Version {version}",
+      "file": "File",
+      "size": "{kb} KB",
+      "uploadedAt": "Uploaded",
+      "download": "Download",
+      "phiOverride": "The scan flagged text that looked like patient data, and the uploader confirmed the file holds none.",
+      "decision": {
+        "approved": "Approved {date}.",
+        "rejected": "Rejected {date}."
+      },
+      "newVersion": "New version",
+      "newVersionHint": "The approved version stays in force until the new one is approved.",
+      "retiredNote": "This document was retired. Its versions stay on record but no longer count as evidence.",
+      "retireTitle": "Retire the document",
+      "retireHint": "Retiring keeps the versions on record; the document can no longer be cited or revised.",
+      "retire": "Retire document"
+    },
+    "decision": {
+      "comment": "Approval comment",
+      "commentHint": "Required to reject, so the author knows what to change.",
+      "approve": "Approve",
+      "reject": "Reject"
+    },
+    "links": {
+      "title": "Linked elements",
+      "hint": "The elements this document covers. It is offered first when choosing evidence for them in an assessment.",
+      "empty": "No linked elements yet.",
+      "element": "Element",
+      "choose": "Choose an element",
+      "link": "Link",
+      "unlink": "Unlink"
+    },
+    "errors": {
+      "invalid": "Check the details you entered.",
+      "forbidden": "You are not allowed to do this.",
+      "notFound": "Document not found.",
+      "titleRequired": "Give the document a title in Arabic or English.",
+      "emptyFile": "The file is empty.",
+      "fileTooLarge": "The file is larger than 10 MB.",
+      "unsupportedFileType": "This file type is not supported. Use PDF, Word, Excel, PNG or JPEG.",
+      "phiAttestationRequired": "Confirm that the file holds no patient data.",
+      "phiDetected": "The file looks like it holds patient data, so it was not saved.",
+      "duplicateFile": "This file was already uploaded to this document.",
+      "versionPending": "A version is awaiting approval. Approve or reject it first.",
+      "documentRetired": "This document was retired.",
+      "unknownDepartment": "That department is not in this facility.",
+      "unknownElement": "That element is not in your facility's frameworks.",
+      "reviewBeforeEffective": "The review date must come after the effective date.",
+      "expiryBeforeEffective": "The expiry date must come after the effective date.",
+      "expiryBeforeReview": "The expiry date cannot come before the review date.",
+      "notInReview": "This version is not awaiting approval.",
+      "commentRequired": "Say why the version is rejected."
     }
   }
 }

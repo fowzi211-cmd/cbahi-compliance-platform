@@ -22,7 +22,9 @@ describe("evidenceProblem", () => {
   it.each([
     [{ kind: "document", note: null, url: "https://dms.example/doc/1" }, null],
     [{ kind: "document", note: "policy", url: "http://intranet.example/p" }, null],
-    [{ kind: "document", note: "policy", url: null }, "urlRequired"],
+    [{ kind: "document", note: "policy", url: null }, "documentRequired"],
+    [{ kind: "document", note: null, url: null, documentVersionId: "v-1" }, null],
+    [{ kind: "document", note: null, url: "not a link", documentVersionId: "v-1" }, null],
     [{ kind: "document", note: null, url: "javascript:alert(1)" }, "invalidUrl"],
     [{ kind: "document", note: null, url: "not a link" }, "invalidUrl"],
     [{ kind: "observation", note: "Fridge log complete for the month", url: null }, null],

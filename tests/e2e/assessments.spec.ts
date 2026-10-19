@@ -130,7 +130,7 @@ test("a quality manager completes a pharmacy assessment", async ({
   await score("DEMO-MED.1.3", "مستوفى", { kind: "مراجعة سجل", note: "سجل الشهر مكتمل." });
   await score("DEMO-MED.1.4", "مستوفى جزئيًا", {
     comment: "السياسة موجودة لكنها لم تُراجع.",
-    kind: "وثيقة (رابط)",
+    kind: "وثيقة",
     url: "https://dms.example.test/policies/demo-7",
   });
   await score("DEMO-MED.2.1", "غير مستوفى", { comment: "لا توجد قائمة تحقق في القسم." });

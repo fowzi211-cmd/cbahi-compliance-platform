@@ -195,7 +195,7 @@ describe("scoring and submitting a department assessment", () => {
       "a document needs a link",
       "3",
       { levelCode: "MET", evidence: { kind: "document", note: "policy" } },
-      "urlRequired",
+      "documentRequired",
     ],
     [
       "a link must be a web link",
@@ -251,6 +251,7 @@ describe("scoring and submitting a department assessment", () => {
       elementScoreId: saved.scoreId,
       kind: "observation",
       url: null,
+      documentVersionId: null,
     });
   });
 

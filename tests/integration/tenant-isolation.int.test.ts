@@ -13,6 +13,18 @@ import {
   submitAssessment,
 } from "@/modules/assessments/service";
 import { listAuditEvents } from "@/modules/audit/service";
+import {
+  createDocument,
+  decideVersion,
+  getDocument,
+  getDownloadUrl,
+  listCitableVersions,
+  listDocuments,
+  retireDocument,
+  setElementLink,
+  uploadVersion,
+} from "@/modules/documents/service";
+import { makePdf } from "@/modules/documents/test-files";
 import { listFindings } from "@/modules/findings/service";
 import {
   activateEdition,
@@ -49,6 +61,7 @@ import {
   type AccessContext,
 } from "@/modules/tenancy/service";
 import {
+  approvedDemoDocument,
   createUser,
   demoEditionJson,
   forgedContext,
@@ -71,6 +84,8 @@ let sharedFrameworkId: string;
 let bElementId: string;
 let bAssessment: { assessmentId: string; evidenceId: string };
 let bOpenAssessmentId: string;
+let bDocument: { documentId: string; versionId: string };
+let bPendingVersionId: string;
 
 beforeAll(async () => {
   [a, b] = await Promise.all([makeTenant("A"), makeTenant("B")]);
@@ -119,6 +134,19 @@ beforeAll(async () => {
   bOpenAssessmentId = await startAssessment(b.ctx, b.facility.id, {
     frameworkId: sharedFrameworkId,
   });
+
+  // An approved, linked document in each tenant, and a version waiting for review in B.
+  await approvedDemoDocument(a.ctx, a.facility.id).then(({ documentId }) =>
+    setElementLink(a.ctx, documentId, bElementId, true),
+  );
+  bDocument = await approvedDemoDocument(b.ctx, b.facility.id);
+  await setElementLink(b.ctx, bDocument.documentId, bElementId, true);
+  bPendingVersionId = (
+    await uploadVersion(b.ctx, bDocument.documentId, {
+      file: { name: "v2.pdf", bytes: makePdf(["B second issue", randomUUID()]) },
+      phiAttested: true,
+    })
+  ).versionId;
 });
 
 afterAll(disconnectDb);
@@ -251,6 +279,59 @@ describe("service layer with a fooled permission check", () => {
     expect(await listAssessments(b.ctx, b.facility.id)).toHaveLength(2);
   });
 
+  it("cannot read, download or change another tenant's documents", async () => {
+    expect(await listDocuments(aForged, b.facility.id)).toEqual([]);
+    expect(await getDocument(aForged, bDocument.documentId)).toBeNull();
+    // ROADMAP M8: a signed URL is never issued across tenants.
+    expect(await getDownloadUrl(aForged, bDocument.versionId)).toBeNull();
+    expect(await getDownloadUrl(a.ctx, bDocument.versionId)).toBeNull();
+    expect(await listCitableVersions(aForged, b.facility.id)).toEqual([]);
+    const file = { name: "x.pdf", bytes: makePdf(["hijack", randomUUID()]) };
+    await expect(
+      createDocument(aForged, b.facility.id, {
+        type: "policy",
+        titleEn: "x",
+        file,
+        phiAttested: true,
+      }),
+    ).rejects.toThrow();
+    await expect(
+      uploadVersion(aForged, bDocument.documentId, { file, phiAttested: true }),
+    ).rejects.toThrow();
+    await expect(
+      decideVersion(aForged, bPendingVersionId, { decision: "approved" }),
+    ).rejects.toThrow();
+    await expect(
+      setElementLink(aForged, bDocument.documentId, bElementId, false),
+    ).rejects.toThrow();
+    await expect(retireDocument(aForged, bDocument.documentId)).rejects.toThrow();
+    await expect(
+      saveElementScore(aForged, bOpenAssessmentId, bElementId, {
+        levelCode: "MET",
+        evidence: { kind: "document", documentVersionId: bDocument.versionId },
+      }),
+    ).rejects.toThrow();
+
+    // B's document is untouched.
+    const bView = (await getDocument(b.ctx, bDocument.documentId))!;
+    expect(bView.retiredAt).toBeNull();
+    expect(bView.versions.map((v) => v.status)).toEqual(["in_review", "approved"]);
+    expect(bView.elements).toHaveLength(1);
+    expect(await getDownloadUrl(b.ctx, bDocument.versionId)).toMatch(/^memory:\/\/tenants\//);
+  });
+
+  it("cannot cite another tenant's approved document in its own score", async () => {
+    const own = await startAssessment(a.ctx, a.facility.id, { frameworkId: sharedFrameworkId });
+    const sheet = (await getAssessmentSheet(a.ctx, own))!;
+    const element = sheet.chapters[0]!.standards[0]!.elements.find((e) => !e.isEsr)!;
+    await expect(
+      saveElementScore(a.ctx, own, element.id, {
+        levelCode: "MET",
+        evidence: { kind: "document", documentVersionId: bDocument.versionId },
+      }),
+    ).rejects.toThrow(/documentNotCitable/);
+  });
+
   it("sees only its own subscription and audit trail", async () => {
     expect((await getSubscription(a.ctx))?.tenantId).toBe(a.tenant.id);
     const events = await listAuditEvents(a.ctx);
@@ -276,6 +357,10 @@ describe("database layer (RLS) on its own", () => {
     score_evidence: "tenant_id",
     element_status: "tenant_id",
     finding: "tenant_id",
+    document: "tenant_id",
+    document_version: "tenant_id",
+    document_approval: "tenant_id",
+    document_element: "tenant_id",
   };
 
   it.each(Object.entries(tenantColumn))(

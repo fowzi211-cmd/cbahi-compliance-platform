@@ -44,7 +44,7 @@ _DoD:_ an e2e test where a quality manager completes a department assessment. Re
 ## Evidence and follow-up
 
 **M8 — Document control**
-Upload to S3 through signed URLs, versioning, SHA-256, a PHI attestation and scanner, an approval workflow, effective/review/expiry dates, linking to elements, and using approved versions as score evidence.
+Upload to S3 (through the server, so files are scanned before they are stored; downloads through signed URLs, see ARCHITECTURE §3.4), versioning, SHA-256, a PHI attestation and scanner, an approval workflow, effective/review/expiry dates, linking to elements, and using approved versions as score evidence.
 _DoD:_ PHI-scanner unit tests pass. An e2e test covers upload → approve → link → cite in a score → new version. An isolation test confirms signed URLs are never issued across tenants.
 
 **M9 — Findings and CAPA**
