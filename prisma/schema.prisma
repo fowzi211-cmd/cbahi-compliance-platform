@@ -264,3 +264,177 @@ model AuditEvent {
   @@index([tenantId, entity, entityId])
   @@map("audit_event")
 }
+
+// ---------------------------------------------------------------------------
+// Standards library (docs/ARCHITECTURE.md §3.1). Global, not tenant-owned: every tenant
+// reads the same published editions, and only the platform admin writes them (through the
+// system connection, audited). The app role sees active and retired editions only; drafts
+// stay hidden because their licence has not been confirmed yet (RLS in the migration).
+// Real frameworks arrive only through the importer at runtime; the repo seeds DEMO-* text.
+// ---------------------------------------------------------------------------
+
+enum FrameworkStatus {
+  draft
+  active
+  retired
+}
+
+enum FrameworkImportStatus {
+  validated
+  committed
+  discarded
+}
+
+// One row per edition. A new edition of the same framework is a new row with the same
+// code, so assessments made against an older edition keep pointing at the text they used.
+model Framework {
+  id           String          @id @default(uuid(7)) @db.Uuid
+  code         String
+  edition      String
+  nameAr       String?         @map("name_ar")
+  nameEn       String?         @map("name_en")
+  program      String
+  status       FrameworkStatus @default(draft)
+  rollupConfig Json            @map("rollup_config")
+  // Who licensed the text and on what terms. Required before an edition can go live.
+  licenseNote  String?         @map("license_note")
+  activatedAt  DateTime?       @map("activated_at") @db.Timestamptz(6)
+  retiredAt    DateTime?       @map("retired_at") @db.Timestamptz(6)
+  createdBy    String?         @map("created_by") @db.Uuid
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  scoreLevels ScoreLevel[]
+  chapters    Chapter[]
+  standards   Standard[]
+  elements    Element[]
+  imports     FrameworkImport[]
+
+  @@unique([code, edition])
+  @@map("framework")
+}
+
+// The scoring scale belongs to the edition: a later edition may change the levels without
+// rewriting how older assessments were scored.
+model ScoreLevel {
+  id                  String  @id @default(uuid(7)) @db.Uuid
+  frameworkId         String  @map("framework_id") @db.Uuid
+  code                String
+  labelAr             String? @map("label_ar")
+  labelEn             String? @map("label_en")
+  value               Decimal @db.Decimal(4, 3)
+  countsInDenominator Boolean @map("counts_in_denominator")
+  requiresEvidence    Boolean @map("requires_evidence")
+  generatesFinding    Boolean @map("generates_finding")
+  sort                Int
+
+  framework Framework @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+
+  @@unique([frameworkId, code])
+  @@map("score_level")
+}
+
+model Chapter {
+  id          String  @id @default(uuid(7)) @db.Uuid
+  frameworkId String  @map("framework_id") @db.Uuid
+  code        String
+  titleAr     String? @map("title_ar")
+  titleEn     String? @map("title_en")
+  sort        Int
+
+  framework Framework  @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  standards Standard[]
+
+  @@unique([frameworkId, code])
+  @@unique([frameworkId, id])
+  @@map("chapter")
+}
+
+model Standard {
+  id          String  @id @default(uuid(7)) @db.Uuid
+  frameworkId String  @map("framework_id") @db.Uuid
+  chapterId   String  @map("chapter_id") @db.Uuid
+  code        String
+  titleAr     String? @map("title_ar")
+  titleEn     String? @map("title_en")
+  weight      Decimal @default(1) @db.Decimal(8, 3)
+  sort        Int
+
+  framework Framework @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  // Composite key: a standard can only sit in a chapter of its own edition.
+  chapter   Chapter   @relation(fields: [frameworkId, chapterId], references: [frameworkId, id], onDelete: Cascade)
+  elements  Element[]
+
+  @@unique([frameworkId, code])
+  @@unique([frameworkId, id])
+  @@index([chapterId])
+  @@map("standard")
+}
+
+model Element {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  frameworkId     String   @map("framework_id") @db.Uuid
+  standardId      String   @map("standard_id") @db.Uuid
+  code            String
+  titleAr         String?  @map("title_ar")
+  titleEn         String?  @map("title_en")
+  descriptionAr   String?  @map("description_ar")
+  descriptionEn   String?  @map("description_en")
+  isEsr           Boolean  @default(false) @map("is_esr")
+  weight          Decimal  @default(1) @db.Decimal(8, 3)
+  sort            Int
+  // Codes from the evidence-type list (domain/import-schema.ts) and the facility- and
+  // department-type catalogues. An empty facility list means "every facility type"; an
+  // empty department list means the element is facility-wide.
+  evidenceTypes   String[] @map("evidence_types")
+  facilityTypes   String[] @map("facility_types")
+  departmentTypes String[] @map("department_types")
+
+  framework Framework @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  standard  Standard  @relation(fields: [frameworkId, standardId], references: [frameworkId, id], onDelete: Cascade)
+
+  @@unique([frameworkId, code])
+  @@index([standardId])
+  @@map("element")
+}
+
+// Catalogues the importer validates applicability codes against. Generic labels only.
+model FacilityType {
+  code   String @id
+  nameAr String @map("name_ar")
+  nameEn String @map("name_en")
+  sort   Int
+
+  @@map("facility_type")
+}
+
+model DepartmentType {
+  code   String @id
+  nameAr String @map("name_ar")
+  nameEn String @map("name_en")
+  sort   Int
+
+  @@map("department_type")
+}
+
+// An uploaded file that passed validation, kept between preview and commit. Files with
+// errors are never stored. The normalized document is what gets committed, so the admin
+// commits exactly what they previewed.
+model FrameworkImport {
+  id          String                @id @default(uuid(7)) @db.Uuid
+  status      FrameworkImportStatus @default(validated)
+  fileName    String                @map("file_name")
+  fileSha256  Bytes                 @map("file_sha256")
+  format      String
+  document    Json
+  report      Json
+  frameworkId String?               @map("framework_id") @db.Uuid
+  createdBy   String                @map("created_by") @db.Uuid
+  createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  committedAt DateTime?             @map("committed_at") @db.Timestamptz(6)
+
+  framework Framework? @relation(fields: [frameworkId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@map("framework_import")
+}

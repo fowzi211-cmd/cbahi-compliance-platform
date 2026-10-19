@@ -1,5 +1,5 @@
 import { withSystem } from "@/lib/db";
-import { recordAudit } from "@/modules/audit/service";
+import { recordAudit, recordPlatformAudit } from "@/modules/audit/service";
 import { listUserMemberships } from "@/modules/tenancy/service";
 import {
   afterSignInAttempt,
@@ -102,4 +102,23 @@ export async function enforceAbsoluteSessionLimit(
 
 export function markEmailVerified(userId: string) {
   return repo.markEmailVerified(userId);
+}
+
+/**
+ * Grants or removes the platform-admin flag. There is deliberately no screen for this: it is
+ * run by the operator from the command line (`pnpm platform:admin`), and it is audited.
+ */
+export async function setPlatformAdmin(email: string, isPlatformAdmin: boolean) {
+  return withSystem(async (tx) => {
+    const user = await repo.findUserIdByEmail(tx, email);
+    if (!user) return false;
+    await repo.setPlatformAdmin(tx, email, isPlatformAdmin);
+    await recordPlatformAudit(tx, null, {
+      action: "update",
+      entity: "app_user",
+      entityId: user.id,
+      after: { isPlatformAdmin },
+    });
+    return true;
+  });
 }

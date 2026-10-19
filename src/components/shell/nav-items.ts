@@ -32,7 +32,7 @@ export type NavItem = {
 
 export const navItems: NavItem[] = [
   { key: "dashboard", href: "/", icon: LayoutDashboard },
-  { key: "standards", href: "/standards", icon: Library, milestone: "M4" },
+  { key: "standards", href: "/standards", icon: Library },
   { key: "assessments", href: "/assessments", icon: ClipboardCheck, milestone: "M7" },
   { key: "tracers", href: "/tracers", icon: Route, milestone: "M11" },
   { key: "findings", href: "/findings", icon: ListChecks, milestone: "M9" },

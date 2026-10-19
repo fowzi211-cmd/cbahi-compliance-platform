@@ -125,6 +125,14 @@ erDiagram
   GuidanceNote { uuid element_id  text body_ar  text body_en  int version }
 ```
 
+**As built in M4** (differences from the diagram above):
+
+- The scoring scale belongs to the edition: `score_level.framework_id` replaces a separate `ScoringScale` table, so a later edition can change the levels without rewriting how older assessments were scored.
+- Applicability and evidence types are code arrays on `element` (`evidence_types`, `facility_types`, `department_types`, GIN-indexed) validated against the `facility_type` and `department_type` catalogue tables. An empty facility list means every facility type; an empty department list means facility-wide.
+- Titles are nullable per language, with a CHECK that at least one exists; the UI shows the other language with a "translation missing" badge.
+- `GuidanceNote` (our own guidance per element) is deferred until a milestone needs it.
+- Library tables are global. The app role has SELECT only, and RLS hides `draft` editions and their rows from it (their licence is not yet confirmed). `framework_import` is invisible to the app role.
+
 `rollup_config` (validated with Zod) sets how scores combine at each level, for example:
 
 ```json
@@ -308,7 +316,7 @@ The policy lives in one place, `tenancy/domain/policy.ts`, as `can(ctx, action, 
 
 ## 9. Standards import
 
-`standards/import` accepts CSV, XLSX or JSON in our documented schema (`docs/IMPORT_FORMAT.md`, written in milestone M3). The flow is upload, validate (Zod, with row-level errors), preview a diff against the current edition, and commit as a **new framework edition** in `draft` status, which an admin then activates. A framework cannot be activated without a `license_note`. The repo seeds only `DEMO-*` placeholder content.
+`standards/import` accepts CSV, XLSX or JSON in our documented schema (`docs/IMPORT_FORMAT.md`, written in milestone M4). The flow is upload, validate (Zod, with row-level errors), preview a diff against the current edition, and commit as a **new framework edition** in `draft` status, which an admin then activates. A framework cannot be activated without a `license_note` (also a DB CHECK), and a partial unique index allows one live edition per code; activating a draft retires the previous live edition in the same transaction. Retired editions stay readable for past assessments. Valid uploads are staged in `framework_import` with their report, so the admin commits exactly what was previewed; files with errors are never stored. Only the platform admin imports (`/{locale}/platform/standards`, MFA required); the flag is granted from the command line with `pnpm platform:admin <email>` and audited. Library writes go through the system role and are written to the platform audit chain. The repo seeds only `DEMO-*` placeholder content (`pnpm db:seed`).
 
 ## 10. Testing strategy
 

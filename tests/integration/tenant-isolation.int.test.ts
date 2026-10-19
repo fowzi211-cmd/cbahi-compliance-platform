@@ -4,6 +4,14 @@ import { disconnectDb, withoutTenant, withTenant } from "@/lib/db";
 import { ForbiddenError } from "@/lib/errors";
 import { listAuditEvents } from "@/modules/audit/service";
 import {
+  activateEdition,
+  browseLibrary,
+  commitImport,
+  listLibrary,
+  previewImport,
+  setLicenseNote,
+} from "@/modules/standards/service";
+import {
   acceptInvitation,
   addMembership,
   createDepartment,
@@ -19,7 +27,14 @@ import {
   revokeInvitation,
   type AccessContext,
 } from "@/modules/tenancy/service";
-import { createUser, forgedContext, makeTenant, uniqueEmail } from "./helpers";
+import {
+  createUser,
+  demoEditionJson,
+  forgedContext,
+  makeTenant,
+  uniqueEmail,
+  uniqueFrameworkCode,
+} from "./helpers";
 
 // Two tenants side by side. Every read and write made as tenant A must be blind to tenant B
 // at three layers: the permission check, the services with a fooled permission check
@@ -242,5 +257,77 @@ describe("invitations across tenants", () => {
     expect((await listUserMemberships(joiner.id)).map((m) => m.tenantId)).toEqual([b.tenant.id]);
     const aMembers = await listMemberships(a.ctx, a.facility.id);
     expect(aMembers.some((m) => m.userId === joiner.id)).toBe(false);
+  });
+});
+
+// The standards library is global, not tenant-owned: every tenant reads the same published
+// editions. What must hold is that the app role can only read it, and never sees drafts
+// (their licence is not confirmed) or the import staging table.
+describe("standards library", () => {
+  let draftId: string;
+  let liveId: string;
+
+  beforeAll(async () => {
+    const adminUser = await createUser(uniqueEmail("library-admin"));
+    const admin = { userId: adminUser.id, isPlatformAdmin: true };
+    const code = uniqueFrameworkCode();
+    const commit = async (edition: string) => {
+      const preview = await previewImport(admin, {
+        fileName: "e.json",
+        bytes: new TextEncoder().encode(demoEditionJson(code, edition)),
+        framework: {},
+      });
+      if (!preview.ok) throw new Error("fixture import failed");
+      return commitImport(admin, preview.importId);
+    };
+    liveId = await commit("1");
+    await setLicenseNote(admin, liveId, "Fictional demo content.");
+    await activateEdition(admin, liveId);
+    draftId = await commit("2");
+  });
+
+  it("shows both tenants the same published editions and neither the drafts", async () => {
+    const [seenByA, seenByB] = await Promise.all([listLibrary(a.ctx), listLibrary(b.ctx)]);
+    expect(seenByA.map((f) => f.id)).toEqual(seenByB.map((f) => f.id));
+    expect(seenByA.some((f) => f.id === liveId)).toBe(true);
+    expect(seenByA.some((f) => f.id === draftId)).toBe(false);
+    expect(await browseLibrary(aForged, draftId, {})).toBeNull();
+  });
+
+  it.each(["framework", "score_level", "chapter", "standard", "element"])(
+    "raw SQL on %s cannot see draft rows",
+    async (table) => {
+      const column = table === "framework" ? "id" : "framework_id";
+      const [counts] = await withTenant(a.ctx, (tx) =>
+        tx.$queryRawUnsafe<{ live: number; draft: number }[]>(
+          `SELECT count(*) FILTER (WHERE ${column} = $1::uuid)::int AS live,
+                  count(*) FILTER (WHERE ${column} = $2::uuid)::int AS draft
+           FROM ${table}`,
+          liveId,
+          draftId,
+        ),
+      );
+      expect(counts.live).toBeGreaterThan(0);
+      expect(counts.draft).toBe(0);
+    },
+  );
+
+  it.each([
+    [
+      "insert a framework",
+      `INSERT INTO framework (id, code, edition, name_en, program, rollup_config, updated_at) VALUES (gen_random_uuid(), 'DEMO-HACK', '1', 'x', 'ambulatory', '{}', now())`,
+    ],
+    ["edit element text", `UPDATE element SET title_en = 'changed'`],
+    ["activate a draft", `UPDATE framework SET status = 'active'`],
+    ["delete a chapter", `DELETE FROM chapter`],
+    [
+      "add a department type",
+      `INSERT INTO department_type (code, name_ar, name_en, sort) VALUES ('x', 'x', 'x', 99)`,
+    ],
+    ["read import staging", `SELECT 1 FROM framework_import LIMIT 1`],
+  ])("does not let the app role %s", async (_, sql) => {
+    await expect(withTenant(a.ctx, (tx) => tx.$executeRawUnsafe(sql))).rejects.toThrow(
+      /permission denied/,
+    );
   });
 });

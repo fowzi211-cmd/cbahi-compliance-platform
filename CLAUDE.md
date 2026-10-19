@@ -29,7 +29,9 @@ pnpm i18n:check             # ar/en message keys and placeholders match
 pnpm db:setup               # create local DB roles + apply migrations (after compose up)
 pnpm db:migrate             # prisma migrate dev (new migration from schema changes)
 pnpm test:int               # vitest integration against <db>_test (needs docker postgres)
-# added by later milestones: pnpm worker (M10), pnpm db:seed (M4/M17)
+pnpm db:seed                # fictional DEMO-AMB framework (idempotent)
+pnpm platform:admin <email> # grant the platform-admin flag (add --revoke to remove)
+# added by later milestones: pnpm worker (M10), demo tenant seed (M17)
 pnpm check                  # lint + typecheck + format + i18n parity + unit + int
 ```
 

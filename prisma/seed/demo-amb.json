@@ -1,0 +1,836 @@
+{
+  "format": "mustamir.framework/v1",
+  "framework": {
+    "code": "DEMO-AMB",
+    "edition": "2026.1",
+    "name_ar": "إطار الرعاية الإسعافية التجريبي",
+    "name_en": "Demo ambulatory care framework",
+    "program": "ambulatory"
+  },
+  "chapters": [
+    {
+      "code": "DEMO-GOV",
+      "title_ar": "الحوكمة والقيادة (فصل تجريبي)",
+      "title_en": "Demo chapter: governance and leadership"
+    },
+    {
+      "code": "DEMO-QI",
+      "title_ar": "تحسين الجودة (فصل تجريبي)",
+      "title_en": "Demo chapter: quality improvement"
+    },
+    {
+      "code": "DEMO-INF",
+      "title_ar": "الوقاية من العدوى (فصل تجريبي)",
+      "title_en": "Demo chapter: infection prevention"
+    },
+    {
+      "code": "DEMO-MED",
+      "title_ar": "إدارة الأدوية (فصل تجريبي)",
+      "title_en": "Demo chapter: medication management"
+    },
+    {
+      "code": "DEMO-CARE",
+      "title_ar": "رعاية المرضى (فصل تجريبي)",
+      "title_en": "Demo chapter: patient care"
+    },
+    {
+      "code": "DEMO-ENV",
+      "title_ar": "سلامة البيئة والمرافق (فصل تجريبي)",
+      "title_en": "Demo chapter: environment and facility safety"
+    },
+    {
+      "code": "DEMO-STF",
+      "title_ar": "شؤون الكوادر (فصل تجريبي)",
+      "title_en": "Demo chapter: staffing"
+    },
+    {
+      "code": "DEMO-REC",
+      "title_ar": "السجلات والمعلومات (فصل تجريبي)",
+      "title_en": "Demo chapter: records and information"
+    }
+  ],
+  "standards": [
+    {
+      "code": "DEMO-GOV.1",
+      "chapter_code": "DEMO-GOV",
+      "title_ar": "معيار تجريبي 1 في الحوكمة والقيادة",
+      "title_en": "Demo standard 1 on governance and leadership"
+    },
+    {
+      "code": "DEMO-GOV.2",
+      "chapter_code": "DEMO-GOV",
+      "title_ar": "معيار تجريبي 2 في الحوكمة والقيادة",
+      "title_en": "Demo standard 2 on governance and leadership"
+    },
+    {
+      "code": "DEMO-GOV.3",
+      "chapter_code": "DEMO-GOV",
+      "title_ar": "معيار تجريبي 3 في الحوكمة والقيادة",
+      "title_en": "Demo standard 3 on governance and leadership"
+    },
+    {
+      "code": "DEMO-QI.1",
+      "chapter_code": "DEMO-QI",
+      "title_ar": "معيار تجريبي 1 في تحسين الجودة",
+      "title_en": "Demo standard 1 on quality improvement"
+    },
+    {
+      "code": "DEMO-QI.2",
+      "chapter_code": "DEMO-QI",
+      "title_ar": "معيار تجريبي 2 في تحسين الجودة",
+      "title_en": "Demo standard 2 on quality improvement"
+    },
+    {
+      "code": "DEMO-QI.3",
+      "chapter_code": "DEMO-QI",
+      "title_ar": "معيار تجريبي 3 في تحسين الجودة",
+      "title_en": "Demo standard 3 on quality improvement"
+    },
+    {
+      "code": "DEMO-INF.1",
+      "chapter_code": "DEMO-INF",
+      "title_ar": "معيار تجريبي 1 في الوقاية من العدوى",
+      "title_en": "Demo standard 1 on infection prevention"
+    },
+    {
+      "code": "DEMO-INF.2",
+      "chapter_code": "DEMO-INF",
+      "title_ar": "معيار تجريبي 2 في الوقاية من العدوى",
+      "title_en": "Demo standard 2 on infection prevention"
+    },
+    {
+      "code": "DEMO-INF.3",
+      "chapter_code": "DEMO-INF",
+      "title_ar": "معيار تجريبي 3 في الوقاية من العدوى",
+      "title_en": "Demo standard 3 on infection prevention"
+    },
+    {
+      "code": "DEMO-MED.1",
+      "chapter_code": "DEMO-MED",
+      "title_ar": "معيار تجريبي 1 في إدارة الأدوية",
+      "title_en": "Demo standard 1 on medication management"
+    },
+    {
+      "code": "DEMO-MED.2",
+      "chapter_code": "DEMO-MED",
+      "title_ar": "معيار تجريبي 2 في إدارة الأدوية",
+      "title_en": "Demo standard 2 on medication management"
+    },
+    {
+      "code": "DEMO-CARE.1",
+      "chapter_code": "DEMO-CARE",
+      "title_ar": "معيار تجريبي 1 في رعاية المرضى",
+      "title_en": "Demo standard 1 on patient care"
+    },
+    {
+      "code": "DEMO-CARE.2",
+      "chapter_code": "DEMO-CARE",
+      "title_ar": "معيار تجريبي 2 في رعاية المرضى",
+      "title_en": "Demo standard 2 on patient care"
+    },
+    {
+      "code": "DEMO-CARE.3",
+      "chapter_code": "DEMO-CARE",
+      "title_ar": "معيار تجريبي 3 في رعاية المرضى",
+      "title_en": "Demo standard 3 on patient care"
+    },
+    {
+      "code": "DEMO-ENV.1",
+      "chapter_code": "DEMO-ENV",
+      "title_ar": "معيار تجريبي 1 في سلامة البيئة والمرافق",
+      "title_en": "Demo standard 1 on environment and facility safety"
+    },
+    {
+      "code": "DEMO-ENV.2",
+      "chapter_code": "DEMO-ENV",
+      "title_ar": "معيار تجريبي 2 في سلامة البيئة والمرافق",
+      "title_en": "Demo standard 2 on environment and facility safety"
+    },
+    {
+      "code": "DEMO-STF.1",
+      "chapter_code": "DEMO-STF",
+      "title_ar": "معيار تجريبي 1 في شؤون الكوادر",
+      "title_en": "Demo standard 1 on staffing"
+    },
+    {
+      "code": "DEMO-STF.2",
+      "chapter_code": "DEMO-STF",
+      "title_ar": "معيار تجريبي 2 في شؤون الكوادر",
+      "title_en": "Demo standard 2 on staffing"
+    },
+    {
+      "code": "DEMO-REC.1",
+      "chapter_code": "DEMO-REC",
+      "title_ar": "معيار تجريبي 1 في السجلات والمعلومات",
+      "title_en": "Demo standard 1 on records and information"
+    },
+    {
+      "code": "DEMO-REC.2",
+      "chapter_code": "DEMO-REC",
+      "title_ar": "معيار تجريبي 2 في السجلات والمعلومات",
+      "title_en": "Demo standard 2 on records and information"
+    }
+  ],
+  "elements": [
+    {
+      "code": "DEMO-GOV.1.1",
+      "standard_code": "DEMO-GOV.1",
+      "title_ar": "متطلب بديل 1.1 في الحوكمة والقيادة (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.1 on governance and leadership (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": true,
+      "evidence_types": ["document", "interview"],
+      "department_types": ["administration"]
+    },
+    {
+      "code": "DEMO-GOV.1.2",
+      "standard_code": "DEMO-GOV.1",
+      "title_ar": "متطلب بديل 1.2 في الحوكمة والقيادة (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.2 on governance and leadership (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["document"],
+      "department_types": ["administration"]
+    },
+    {
+      "code": "DEMO-GOV.1.3",
+      "standard_code": "DEMO-GOV.1",
+      "title_ar": "متطلب بديل 1.3 في الحوكمة والقيادة (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.3 on governance and leadership (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["document", "interview"],
+      "department_types": ["administration"]
+    },
+    {
+      "code": "DEMO-GOV.2.1",
+      "standard_code": "DEMO-GOV.2",
+      "title_ar": "متطلب بديل 2.1 في الحوكمة والقيادة (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.1 on governance and leadership (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["document", "interview"],
+      "department_types": ["administration"]
+    },
+    {
+      "code": "DEMO-GOV.2.2",
+      "standard_code": "DEMO-GOV.2",
+      "title_ar": "متطلب بديل 2.2 في الحوكمة والقيادة (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.2 on governance and leadership (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["document"],
+      "department_types": ["administration"]
+    },
+    {
+      "code": "DEMO-GOV.2.3",
+      "standard_code": "DEMO-GOV.2",
+      "title_ar": "متطلب بديل 2.3 في الحوكمة والقيادة (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.3 on governance and leadership (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["document", "interview"],
+      "department_types": ["administration"]
+    },
+    {
+      "code": "DEMO-GOV.3.1",
+      "standard_code": "DEMO-GOV.3",
+      "title_ar": "متطلب بديل 3.1 في الحوكمة والقيادة (نص تجريبي)",
+      "title_en": "Placeholder requirement 3.1 on governance and leadership (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["document", "interview"],
+      "department_types": ["administration"]
+    },
+    {
+      "code": "DEMO-GOV.3.2",
+      "standard_code": "DEMO-GOV.3",
+      "title_ar": "متطلب بديل 3.2 في الحوكمة والقيادة (نص تجريبي)",
+      "title_en": "Placeholder requirement 3.2 on governance and leadership (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["document"],
+      "department_types": ["administration"]
+    },
+    {
+      "code": "DEMO-QI.1.1",
+      "standard_code": "DEMO-QI.1",
+      "title_ar": "متطلب بديل 1.1 في تحسين الجودة (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.1 on quality improvement (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["kpi", "document"],
+      "department_types": ["quality"]
+    },
+    {
+      "code": "DEMO-QI.1.2",
+      "standard_code": "DEMO-QI.1",
+      "title_ar": "متطلب بديل 1.2 في تحسين الجودة (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.2 on quality improvement (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": true,
+      "evidence_types": ["kpi"],
+      "department_types": ["quality"]
+    },
+    {
+      "code": "DEMO-QI.1.3",
+      "standard_code": "DEMO-QI.1",
+      "title_ar": "متطلب بديل 1.3 في تحسين الجودة (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.3 on quality improvement (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["kpi", "document"],
+      "department_types": ["quality"]
+    },
+    {
+      "code": "DEMO-QI.2.1",
+      "standard_code": "DEMO-QI.2",
+      "title_ar": "متطلب بديل 2.1 في تحسين الجودة (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.1 on quality improvement (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["kpi", "document"],
+      "department_types": ["quality"]
+    },
+    {
+      "code": "DEMO-QI.2.2",
+      "standard_code": "DEMO-QI.2",
+      "title_ar": "متطلب بديل 2.2 في تحسين الجودة (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.2 on quality improvement (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["kpi"],
+      "department_types": ["quality"]
+    },
+    {
+      "code": "DEMO-QI.2.3",
+      "standard_code": "DEMO-QI.2",
+      "title_ar": "متطلب بديل 2.3 في تحسين الجودة (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.3 on quality improvement (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["kpi", "document"],
+      "department_types": ["quality"]
+    },
+    {
+      "code": "DEMO-QI.3.1",
+      "standard_code": "DEMO-QI.3",
+      "title_ar": "متطلب بديل 3.1 في تحسين الجودة (نص تجريبي)",
+      "title_en": "Placeholder requirement 3.1 on quality improvement (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["kpi", "document"],
+      "department_types": ["quality"]
+    },
+    {
+      "code": "DEMO-QI.3.2",
+      "standard_code": "DEMO-QI.3",
+      "title_ar": "متطلب بديل 3.2 في تحسين الجودة (نص تجريبي)",
+      "title_en": "Placeholder requirement 3.2 on quality improvement (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["kpi"],
+      "department_types": ["quality"]
+    },
+    {
+      "code": "DEMO-INF.1.1",
+      "standard_code": "DEMO-INF.1",
+      "title_ar": "متطلب بديل 1.1 في الوقاية من العدوى (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.1 on infection prevention (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": true,
+      "evidence_types": ["observation", "document"],
+      "department_types": ["infection_control", "sterilization", "nursing"]
+    },
+    {
+      "code": "DEMO-INF.1.2",
+      "standard_code": "DEMO-INF.1",
+      "title_ar": "متطلب بديل 1.2 في الوقاية من العدوى (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.2 on infection prevention (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["observation"],
+      "department_types": ["infection_control"]
+    },
+    {
+      "code": "DEMO-INF.1.3",
+      "standard_code": "DEMO-INF.1",
+      "title_ar": "متطلب بديل 1.3 في الوقاية من العدوى (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.3 on infection prevention (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["observation", "document"],
+      "department_types": ["infection_control", "sterilization", "nursing"]
+    },
+    {
+      "code": "DEMO-INF.2.1",
+      "standard_code": "DEMO-INF.2",
+      "title_ar": "متطلب بديل 2.1 في الوقاية من العدوى (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.1 on infection prevention (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": true,
+      "evidence_types": ["observation", "document"],
+      "department_types": ["infection_control", "sterilization", "nursing"]
+    },
+    {
+      "code": "DEMO-INF.2.2",
+      "standard_code": "DEMO-INF.2",
+      "title_ar": "متطلب بديل 2.2 في الوقاية من العدوى (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.2 on infection prevention (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["observation"],
+      "department_types": ["infection_control"]
+    },
+    {
+      "code": "DEMO-INF.2.3",
+      "standard_code": "DEMO-INF.2",
+      "title_ar": "متطلب بديل 2.3 في الوقاية من العدوى (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.3 on infection prevention (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["observation", "document"],
+      "department_types": ["infection_control", "sterilization", "nursing"]
+    },
+    {
+      "code": "DEMO-INF.3.1",
+      "standard_code": "DEMO-INF.3",
+      "title_ar": "متطلب بديل 3.1 في الوقاية من العدوى (نص تجريبي)",
+      "title_en": "Placeholder requirement 3.1 on infection prevention (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["observation", "document"],
+      "department_types": ["infection_control", "sterilization", "nursing"]
+    },
+    {
+      "code": "DEMO-INF.3.2",
+      "standard_code": "DEMO-INF.3",
+      "title_ar": "متطلب بديل 3.2 في الوقاية من العدوى (نص تجريبي)",
+      "title_en": "Placeholder requirement 3.2 on infection prevention (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["observation"],
+      "department_types": ["infection_control"]
+    },
+    {
+      "code": "DEMO-MED.1.1",
+      "standard_code": "DEMO-MED.1",
+      "title_ar": "متطلب بديل 1.1 في إدارة الأدوية (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.1 on medication management (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": true,
+      "evidence_types": ["observation", "record_review"],
+      "department_types": ["pharmacy", "nursing"]
+    },
+    {
+      "code": "DEMO-MED.1.2",
+      "standard_code": "DEMO-MED.1",
+      "title_ar": "متطلب بديل 1.2 في إدارة الأدوية (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.2 on medication management (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["observation"],
+      "department_types": ["pharmacy"]
+    },
+    {
+      "code": "DEMO-MED.1.3",
+      "standard_code": "DEMO-MED.1",
+      "title_ar": "متطلب بديل 1.3 في إدارة الأدوية (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.3 on medication management (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": true,
+      "evidence_types": ["observation", "record_review"],
+      "department_types": ["pharmacy", "nursing"]
+    },
+    {
+      "code": "DEMO-MED.1.4",
+      "standard_code": "DEMO-MED.1",
+      "title_ar": "متطلب بديل 1.4 في إدارة الأدوية (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.4 on medication management (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["observation"],
+      "department_types": ["pharmacy"]
+    },
+    {
+      "code": "DEMO-MED.2.1",
+      "standard_code": "DEMO-MED.2",
+      "title_ar": "متطلب بديل 2.1 في إدارة الأدوية (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.1 on medication management (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["observation", "record_review"],
+      "department_types": ["pharmacy", "nursing"]
+    },
+    {
+      "code": "DEMO-MED.2.2",
+      "standard_code": "DEMO-MED.2",
+      "title_ar": "متطلب بديل 2.2 في إدارة الأدوية (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.2 on medication management (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["observation"],
+      "department_types": ["pharmacy"]
+    },
+    {
+      "code": "DEMO-MED.2.3",
+      "standard_code": "DEMO-MED.2",
+      "title_ar": "متطلب بديل 2.3 في إدارة الأدوية (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.3 on medication management (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["observation", "record_review"],
+      "department_types": ["pharmacy", "nursing"]
+    },
+    {
+      "code": "DEMO-CARE.1.1",
+      "standard_code": "DEMO-CARE.1",
+      "title_ar": "متطلب بديل 1.1 في رعاية المرضى (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.1 on patient care (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": true,
+      "evidence_types": ["record_review", "interview"],
+      "department_types": ["outpatient", "nursing", "emergency"]
+    },
+    {
+      "code": "DEMO-CARE.1.2",
+      "standard_code": "DEMO-CARE.1",
+      "title_ar": "متطلب بديل 1.2 في رعاية المرضى (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.2 on patient care (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["record_review"],
+      "department_types": ["outpatient"]
+    },
+    {
+      "code": "DEMO-CARE.1.3",
+      "standard_code": "DEMO-CARE.1",
+      "title_ar": "متطلب بديل 1.3 في رعاية المرضى (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.3 on patient care (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["record_review", "interview"],
+      "department_types": ["outpatient", "nursing", "emergency"]
+    },
+    {
+      "code": "DEMO-CARE.2.1",
+      "standard_code": "DEMO-CARE.2",
+      "title_ar": "متطلب بديل 2.1 في رعاية المرضى (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.1 on patient care (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["record_review", "interview"],
+      "department_types": ["outpatient", "nursing", "emergency"]
+    },
+    {
+      "code": "DEMO-CARE.2.2",
+      "standard_code": "DEMO-CARE.2",
+      "title_ar": "متطلب بديل 2.2 في رعاية المرضى (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.2 on patient care (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["record_review"],
+      "department_types": ["outpatient"]
+    },
+    {
+      "code": "DEMO-CARE.2.3",
+      "standard_code": "DEMO-CARE.2",
+      "title_ar": "متطلب بديل 2.3 في رعاية المرضى (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.3 on patient care (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["record_review", "interview"],
+      "department_types": ["outpatient", "nursing", "emergency"]
+    },
+    {
+      "code": "DEMO-CARE.3.1",
+      "standard_code": "DEMO-CARE.3",
+      "title_ar": "متطلب بديل 3.1 في رعاية المرضى (نص تجريبي)",
+      "title_en": "Placeholder requirement 3.1 on patient care (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["record_review", "interview"],
+      "department_types": ["outpatient", "nursing", "emergency"]
+    },
+    {
+      "code": "DEMO-CARE.3.2",
+      "standard_code": "DEMO-CARE.3",
+      "title_ar": "متطلب بديل 3.2 في رعاية المرضى (نص تجريبي)",
+      "title_en": null,
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": null,
+      "is_esr": false,
+      "evidence_types": ["record_review"],
+      "department_types": ["outpatient"]
+    },
+    {
+      "code": "DEMO-ENV.1.1",
+      "standard_code": "DEMO-ENV.1",
+      "title_ar": "متطلب بديل 1.1 في سلامة البيئة والمرافق (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.1 on environment and facility safety (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": true,
+      "evidence_types": ["observation", "document"],
+      "department_types": ["facility_management"]
+    },
+    {
+      "code": "DEMO-ENV.1.2",
+      "standard_code": "DEMO-ENV.1",
+      "title_ar": "متطلب بديل 1.2 في سلامة البيئة والمرافق (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.2 on environment and facility safety (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": true,
+      "evidence_types": ["observation"],
+      "department_types": ["facility_management"]
+    },
+    {
+      "code": "DEMO-ENV.1.3",
+      "standard_code": "DEMO-ENV.1",
+      "title_ar": "متطلب بديل 1.3 في سلامة البيئة والمرافق (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.3 on environment and facility safety (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["observation", "document"],
+      "department_types": ["facility_management"]
+    },
+    {
+      "code": "DEMO-ENV.1.4",
+      "standard_code": "DEMO-ENV.1",
+      "title_ar": "متطلب بديل 1.4 في سلامة البيئة والمرافق (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.4 on environment and facility safety (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["observation"],
+      "department_types": ["facility_management"]
+    },
+    {
+      "code": "DEMO-ENV.2.1",
+      "standard_code": "DEMO-ENV.2",
+      "title_ar": "متطلب بديل 2.1 في سلامة البيئة والمرافق (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.1 on environment and facility safety (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["observation", "document"],
+      "department_types": ["facility_management"]
+    },
+    {
+      "code": "DEMO-ENV.2.2",
+      "standard_code": "DEMO-ENV.2",
+      "title_ar": "متطلب بديل 2.2 في سلامة البيئة والمرافق (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.2 on environment and facility safety (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["observation"],
+      "department_types": ["facility_management"]
+    },
+    {
+      "code": "DEMO-ENV.2.3",
+      "standard_code": "DEMO-ENV.2",
+      "title_ar": "متطلب بديل 2.3 في سلامة البيئة والمرافق (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.3 on environment and facility safety (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["observation", "document"],
+      "department_types": ["facility_management"]
+    },
+    {
+      "code": "DEMO-STF.1.1",
+      "standard_code": "DEMO-STF.1",
+      "title_ar": "متطلب بديل 1.1 في شؤون الكوادر (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.1 on staffing (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["document", "record_review"],
+      "department_types": ["human_resources"]
+    },
+    {
+      "code": "DEMO-STF.1.2",
+      "standard_code": "DEMO-STF.1",
+      "title_ar": "متطلب بديل 1.2 في شؤون الكوادر (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.2 on staffing (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["document"],
+      "department_types": ["human_resources"]
+    },
+    {
+      "code": "DEMO-STF.1.3",
+      "standard_code": "DEMO-STF.1",
+      "title_ar": "متطلب بديل 1.3 في شؤون الكوادر (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.3 on staffing (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["document", "record_review"],
+      "department_types": ["human_resources"]
+    },
+    {
+      "code": "DEMO-STF.1.4",
+      "standard_code": "DEMO-STF.1",
+      "title_ar": "متطلب بديل 1.4 في شؤون الكوادر (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.4 on staffing (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["document"],
+      "department_types": ["human_resources"]
+    },
+    {
+      "code": "DEMO-STF.2.1",
+      "standard_code": "DEMO-STF.2",
+      "title_ar": "متطلب بديل 2.1 في شؤون الكوادر (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.1 on staffing (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["document", "record_review"],
+      "department_types": ["human_resources"]
+    },
+    {
+      "code": "DEMO-STF.2.2",
+      "standard_code": "DEMO-STF.2",
+      "title_ar": "متطلب بديل 2.2 في شؤون الكوادر (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.2 on staffing (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["document"],
+      "department_types": ["human_resources"]
+    },
+    {
+      "code": "DEMO-STF.2.3",
+      "standard_code": "DEMO-STF.2",
+      "title_ar": "متطلب بديل 2.3 في شؤون الكوادر (نص تجريبي)",
+      "title_en": null,
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": null,
+      "is_esr": false,
+      "evidence_types": ["document", "record_review"],
+      "department_types": ["human_resources"]
+    },
+    {
+      "code": "DEMO-REC.1.1",
+      "standard_code": "DEMO-REC.1",
+      "title_ar": "متطلب بديل 1.1 في السجلات والمعلومات (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.1 on records and information (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": true,
+      "evidence_types": ["record_review", "document"],
+      "department_types": ["health_information", "reception"]
+    },
+    {
+      "code": "DEMO-REC.1.2",
+      "standard_code": "DEMO-REC.1",
+      "title_ar": "متطلب بديل 1.2 في السجلات والمعلومات (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.2 on records and information (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["record_review"],
+      "department_types": ["health_information"]
+    },
+    {
+      "code": "DEMO-REC.1.3",
+      "standard_code": "DEMO-REC.1",
+      "title_ar": "متطلب بديل 1.3 في السجلات والمعلومات (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.3 on records and information (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["record_review", "document"],
+      "department_types": ["health_information", "reception"]
+    },
+    {
+      "code": "DEMO-REC.1.4",
+      "standard_code": "DEMO-REC.1",
+      "title_ar": "متطلب بديل 1.4 في السجلات والمعلومات (نص تجريبي)",
+      "title_en": "Placeholder requirement 1.4 on records and information (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["record_review"],
+      "department_types": ["health_information"]
+    },
+    {
+      "code": "DEMO-REC.2.1",
+      "standard_code": "DEMO-REC.2",
+      "title_ar": "متطلب بديل 2.1 في السجلات والمعلومات (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.1 on records and information (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["record_review", "document"],
+      "department_types": ["health_information", "reception"]
+    },
+    {
+      "code": "DEMO-REC.2.2",
+      "standard_code": "DEMO-REC.2",
+      "title_ar": "متطلب بديل 2.2 في السجلات والمعلومات (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.2 on records and information (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["record_review"],
+      "department_types": ["health_information"]
+    },
+    {
+      "code": "DEMO-REC.2.3",
+      "standard_code": "DEMO-REC.2",
+      "title_ar": "متطلب بديل 2.3 في السجلات والمعلومات (نص تجريبي)",
+      "title_en": "Placeholder requirement 2.3 on records and information (demo text)",
+      "description_ar": "نص خيالي لعرض المنصة فقط، وليس مأخوذًا من أي معيار اعتماد.",
+      "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
+      "is_esr": false,
+      "evidence_types": ["record_review", "document"],
+      "department_types": ["health_information", "reception"]
+    }
+  ]
+}

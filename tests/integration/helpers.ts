@@ -37,3 +37,43 @@ export const uniqueEmail = (prefix: string) => `${prefix}-${randomUUID().slice(0
 export function createUser(email: string, name = "Test user") {
   return withSystem((tx) => tx.user.create({ data: { email, name } }));
 }
+
+/** A unique, fictional framework code so tests sharing the global library never collide. */
+export const uniqueFrameworkCode = () => `DEMO-T${randomUUID().slice(0, 8).toUpperCase()}`;
+
+/** A small fictional edition in the JSON import format. Never real accreditation text. */
+export function demoEditionJson(
+  code: string,
+  edition: string,
+  options: { esr?: string[]; elements?: string[] } = {},
+) {
+  const elements = options.elements ?? ["1", "2", "3"];
+  const esr = new Set(options.esr ?? ["1"]);
+  return JSON.stringify({
+    format: "mustamir.framework/v1",
+    framework: {
+      code,
+      edition,
+      name_ar: "إطار تجريبي",
+      name_en: "Demo framework",
+      program: "ambulatory",
+    },
+    chapters: [{ code: "DEMO-X", title_ar: "فصل تجريبي", title_en: "Demo chapter" }],
+    standards: [
+      {
+        code: "DEMO-X.1",
+        chapter_code: "DEMO-X",
+        title_ar: "معيار تجريبي",
+        title_en: "Demo standard",
+      },
+    ],
+    elements: elements.map((n) => ({
+      code: `DEMO-X.1.${n}`,
+      standard_code: "DEMO-X.1",
+      title_ar: `عنصر تجريبي ${n}`,
+      title_en: `Demo element ${n}`,
+      is_esr: esr.has(n),
+      department_types: n === "2" ? "nursing" : "",
+    })),
+  });
+}

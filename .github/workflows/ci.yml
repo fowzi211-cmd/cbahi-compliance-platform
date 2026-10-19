@@ -85,6 +85,8 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - run: cp .env.example .env
       - run: pnpm db:setup
+      # The library e2e tests browse the fictional DEMO-AMB framework.
+      - run: pnpm db:seed
       - run: pnpm build
       - run: pnpm test:e2e
       - uses: actions/upload-artifact@v4

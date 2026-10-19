@@ -20,12 +20,18 @@ cp .env.example .env
 docker compose up -d      # PostgreSQL :5432, S3 storage :8333, Mailpit :1025 / UI :8025
 pnpm install
 pnpm db:setup             # database roles + migrations
+pnpm db:seed              # fictional DEMO-AMB framework for the standards library
 pnpm dev                  # http://localhost:3000
 ```
 
 Then open http://localhost:3000, create an account and set up your organization. Owners and
 quality managers must turn on two-step verification with an authenticator app (any TOTP app
 works). Invitation emails land in Mailpit at http://localhost:8025.
+
+The standards library is under **Standards library** in the menu. To import frameworks, make an
+account a platform admin with `pnpm platform:admin you@example.com`, enrol two-step verification,
+and open http://localhost:3000/ar/platform/standards. The file format is in
+[docs/IMPORT_FORMAT.md](docs/IMPORT_FORMAT.md).
 
 Local services:
 
