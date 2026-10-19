@@ -52,6 +52,10 @@ model Tenant {
   capaEvidence         CapaEvidence[]
   notifications        Notification[]
   notificationPrefs    NotificationPreference[]
+  assessmentElements   AssessmentElement[]
+  tracerTemplates      TracerTemplate[]
+  tracerTemplateChaps  TracerTemplateChapter[]
+  tracerRuns           TracerRun[]
 
   @@map("tenant")
 }
@@ -89,20 +93,21 @@ model Facility {
   onboardingSteps String[]  @default([]) @map("onboarding_steps")
   onboardedAt     DateTime? @map("onboarded_at") @db.Timestamptz(6)
 
-  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  facilityType  FacilityType           @relation(fields: [type], references: [code])
-  departments   Department[]
-  memberships   Membership[]
-  invitations   Invitation[]
-  frameworks    FacilityFramework[]
-  applicability ElementApplicability[]
-  surveyCycle   SurveyCycle?
-  assessments   Assessment[]
-  statuses      ElementStatus[]
-  findings      Finding[]
-  documents     Document[]
-  capaItems     CapaItem[]
-  notifications Notification[]
+  tenant          Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facilityType    FacilityType           @relation(fields: [type], references: [code])
+  departments     Department[]
+  memberships     Membership[]
+  invitations     Invitation[]
+  frameworks      FacilityFramework[]
+  applicability   ElementApplicability[]
+  surveyCycle     SurveyCycle?
+  assessments     Assessment[]
+  statuses        ElementStatus[]
+  findings        Finding[]
+  documents       Document[]
+  capaItems       CapaItem[]
+  notifications   Notification[]
+  tracerTemplates TracerTemplate[]
 
   @@unique([tenantId, id])
   @@index([tenantId])
@@ -119,16 +124,17 @@ model Department {
   updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
 
-  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   // What kind of department this is, so elements tagged with a department type find it.
-  typeCode    String?         @map("department_type")
+  typeCode        String?          @map("department_type")
   // Composite key: a department can never point at another tenant's facility.
-  facility    Facility        @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
-  type        DepartmentType? @relation(fields: [typeCode], references: [code])
-  memberships Membership[]
-  invitations Invitation[]
-  assessments Assessment[]
-  documents   Document[]
+  facility        Facility         @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  type            DepartmentType?  @relation(fields: [typeCode], references: [code])
+  memberships     Membership[]
+  invitations     Invitation[]
+  assessments     Assessment[]
+  documents       Document[]
+  tracerTemplates TracerTemplate[]
 
   @@unique([tenantId, id])
   @@index([tenantId, facilityId])
@@ -340,13 +346,14 @@ model Framework {
   createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  scoreLevels ScoreLevel[]
-  chapters    Chapter[]
-  standards   Standard[]
-  elements    Element[]
-  imports     FrameworkImport[]
-  facilities  FacilityFramework[]
-  assessments Assessment[]
+  scoreLevels     ScoreLevel[]
+  chapters        Chapter[]
+  standards       Standard[]
+  elements        Element[]
+  imports         FrameworkImport[]
+  facilities      FacilityFramework[]
+  assessments     Assessment[]
+  tracerTemplates TracerTemplate[]
 
   @@unique([code, edition])
   @@map("framework")
@@ -381,8 +388,9 @@ model Chapter {
   titleEn     String? @map("title_en")
   sort        Int
 
-  framework Framework  @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
-  standards Standard[]
+  framework       Framework               @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  standards       Standard[]
+  tracerTemplates TracerTemplateChapter[]
 
   @@unique([frameworkId, code])
   @@unique([frameworkId, id])
@@ -436,6 +444,7 @@ model Element {
   statuses      ElementStatus[]
   findings      Finding[]
   documents     DocumentElement[]
+  sampledIn     AssessmentElement[]
 
   @@unique([frameworkId, code])
   @@index([standardId])
@@ -596,13 +605,18 @@ model Assessment {
   startedAt    DateTime         @default(now()) @map("started_at") @db.Timestamptz(6)
   submittedBy  String?          @map("submitted_by") @db.Uuid
   submittedAt  DateTime?        @map("submitted_at") @db.Timestamptz(6)
+  // Who carries out a tracer run; null for self-assessments, which are scored by role.
+  assignedTo   String?          @map("assigned_to") @db.Uuid
 
-  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  facility   Facility       @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
-  department Department?    @relation(fields: [tenantId, departmentId], references: [tenantId, id], onDelete: Restrict)
-  framework  Framework      @relation(fields: [frameworkId], references: [id], onDelete: Restrict)
+  tenant     Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facility   Facility            @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  department Department?         @relation(fields: [tenantId, departmentId], references: [tenantId, id], onDelete: Restrict)
+  framework  Framework           @relation(fields: [frameworkId], references: [id], onDelete: Restrict)
   scores     ElementScore[]
   findings   Finding[]
+  // The elements a sampled assessment (a tracer run) covers; empty for a full assessment.
+  sample     AssessmentElement[]
+  tracerRun  TracerRun?
 
   @@unique([tenantId, id])
   @@index([tenantId, facilityId, startedAt])
@@ -988,4 +1002,91 @@ model NotificationPreference {
 
   @@id([tenantId, userId])
   @@map("notification_preference")
+}
+
+// --- Tracers (M11) --------------------------------------------------------------------------
+
+// The fixed list of elements a sampled assessment covers, drawn when it starts.
+model AssessmentElement {
+  tenantId     String @map("tenant_id") @db.Uuid
+  assessmentId String @map("assessment_id") @db.Uuid
+  elementId    String @map("element_id") @db.Uuid
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assessment Assessment @relation(fields: [tenantId, assessmentId], references: [tenantId, id], onDelete: Cascade)
+  element    Element    @relation(fields: [elementId], references: [id], onDelete: Restrict)
+
+  @@id([assessmentId, elementId])
+  @@index([tenantId, assessmentId])
+  @@map("assessment_element")
+}
+
+enum TracerFrequency {
+  weekly
+  monthly
+}
+
+model TracerTemplate {
+  id             String          @id @default(uuid(7)) @db.Uuid
+  tenantId       String          @map("tenant_id") @db.Uuid
+  facilityId     String          @map("facility_id") @db.Uuid
+  frameworkId    String          @map("framework_id") @db.Uuid
+  // Null for a facility-wide tracer.
+  departmentId   String?         @map("department_id") @db.Uuid
+  nameAr         String?         @map("name_ar")
+  nameEn         String?         @map("name_en")
+  sampleSize     Int             @map("sample_size")
+  frequency      TracerFrequency
+  // The person who usually walks it; null means whoever manages the template.
+  assigneeUserId String?         @map("assignee_user_id") @db.Uuid
+  createdBy      String?         @map("created_by") @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  archivedAt     DateTime?       @map("archived_at") @db.Timestamptz(6)
+
+  tenant     Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facility   Facility                @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  department Department?             @relation(fields: [tenantId, departmentId], references: [tenantId, id], onDelete: Restrict)
+  framework  Framework               @relation(fields: [frameworkId], references: [id], onDelete: Restrict)
+  chapters   TracerTemplateChapter[]
+  runs       TracerRun[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, facilityId])
+  @@map("tracer_template")
+}
+
+// The pool: the chapters a template samples from. No rows means every chapter.
+model TracerTemplateChapter {
+  tenantId   String @map("tenant_id") @db.Uuid
+  templateId String @map("template_id") @db.Uuid
+  chapterId  String @map("chapter_id") @db.Uuid
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  template TracerTemplate @relation(fields: [tenantId, templateId], references: [tenantId, id], onDelete: Cascade)
+  chapter  Chapter        @relation(fields: [chapterId], references: [id], onDelete: Restrict)
+
+  @@id([templateId, chapterId])
+  @@index([tenantId, templateId])
+  @@map("tracer_template_chapter")
+}
+
+// A tracer run is an assessment of kind `tracer`; this row records how its sample was drawn.
+model TracerRun {
+  assessmentId String   @id @map("assessment_id") @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  templateId   String   @map("template_id") @db.Uuid
+  // 32 hex digits. With `candidates` it repeats the draw exactly.
+  seed         String
+  // [{ elementId, weight }] as weighed when the run started.
+  candidates   Json
+  sampleSize   Int      @map("sample_size")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assessment Assessment     @relation(fields: [tenantId, assessmentId], references: [tenantId, id], onDelete: Cascade)
+  template   TracerTemplate @relation(fields: [tenantId, templateId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, assessmentId])
+  @@index([tenantId, templateId, createdAt])
+  @@map("tracer_run")
 }

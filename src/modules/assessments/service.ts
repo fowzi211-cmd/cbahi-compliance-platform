@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { withTenant } from "@/lib/db";
+import { withTenant, type Tx } from "@/lib/db";
 import { DomainError, ForbiddenError } from "@/lib/errors";
 import { recordAudit } from "@/modules/audit/service";
 import { findCitableVersion } from "@/modules/documents/service";
@@ -19,6 +19,8 @@ import {
   getFacility,
   listDepartments,
   type AccessContext,
+  type Action,
+  type Resource,
 } from "@/modules/tenancy/service";
 import {
   evidenceKinds,
@@ -27,6 +29,7 @@ import {
   inScope,
   progress,
   unscoredElements,
+  type AssessmentKind,
 } from "./domain/assessment";
 import { elementScoreProblems } from "./domain/element-score";
 import {
@@ -34,6 +37,7 @@ import {
   statusUpdatesOnSubmit,
   type ElementStatusRecord,
 } from "./domain/element-status";
+import { defaultScoreValidityDays } from "./domain/expiry";
 import { defaultReadinessSettings } from "./domain/readiness";
 import { computeRollup, rollupSettingsFrom } from "./domain/rollup";
 import { findLevel, normalizedValue } from "./domain/scale";
@@ -41,7 +45,7 @@ import { evaluateFacility } from "./domain/scoring";
 import * as repo from "./repo";
 
 export { evidenceKinds, evidenceLimits } from "./domain/assessment";
-export type { AssessmentStatus, EvidenceKind } from "./domain/assessment";
+export type { AssessmentKind, AssessmentStatus, EvidenceKind } from "./domain/assessment";
 export type { ReadinessReason, ReadinessStatus } from "./domain/readiness";
 
 export type AssessmentError =
@@ -63,16 +67,28 @@ export type AssessmentError =
   | "commentRequired";
 
 type AssessmentRow = NonNullable<Awaited<ReturnType<typeof repo.findAssessment>>>;
-type Scope = { facilityId: string; departmentId: string | null };
+type Scoped = {
+  facilityId: string;
+  departmentId: string | null;
+  kind: AssessmentKind;
+  assignedTo: string | null;
+};
 
-const scopeOf = (a: { facilityId: string; departmentId: string | null }): Scope => ({
+const scopeOf = (a: Scoped): Resource => ({
   facilityId: a.facilityId,
   departmentId: a.departmentId,
+  assigneeUserIds: a.assignedTo ? [a.assignedTo] : [],
 });
 
+/** A tracer run is scored under `tracer.run` (its assignee may score it); the rest by role. */
+const scoreAction = (a: Scoped): Action =>
+  a.kind === "tracer" ? "tracer.run" : "assessment.score";
+
+const canScore = (ctx: AccessContext, a: Scoped) => allowed(ctx, scoreAction(a), scopeOf(a));
+
 /** Scorers see what they score; anyone with the dashboard for that scope may read it. */
-function canRead(ctx: AccessContext, scope: Scope) {
-  return allowed(ctx, "assessment.score", scope) || allowed(ctx, "dashboard.view", scope);
+function canRead(ctx: AccessContext, a: Scoped) {
+  return canScore(ctx, a) || allowed(ctx, "dashboard.view", scopeOf(a));
 }
 
 /**
@@ -82,23 +98,34 @@ function canRead(ctx: AccessContext, scope: Scope) {
 const departmentTypeOf = (a: AssessmentRow) =>
   a.departmentId === null ? undefined : (a.department?.typeCode ?? null);
 
-function scopeElements(content: ScoringContent, departmentType: string | null | undefined) {
-  return content.elements.filter((e) => inScope(e, departmentType));
+/** A sampled assessment (a tracer run) covers its drawn elements; the others everything. */
+const sampleOf = (a: AssessmentRow) =>
+  a.kind === "tracer" ? new Set(a.sample.map((s) => s.elementId)) : undefined;
+
+function scopeElements(
+  content: ScoringContent,
+  departmentType: string | null | undefined,
+  sample?: ReadonlySet<string>,
+) {
+  return content.elements.filter(
+    (e) => inScope(e, departmentType) && (!sample || sample.has(e.id)),
+  );
 }
+
+const assessmentScope = (content: ScoringContent, a: AssessmentRow) =>
+  scopeElements(content, departmentTypeOf(a), sampleOf(a));
 
 async function loadAssessment(ctx: AccessContext, assessmentId: string) {
   if (!z.uuid().safeParse(assessmentId).success) return null;
   const row = await withTenant(ctx, (tx) => repo.findAssessment(tx, ctx.tenantId, assessmentId));
-  return row && canRead(ctx, scopeOf(row)) ? row : null;
+  return row && canRead(ctx, row) ? row : null;
 }
 
 /** The assessment, its framework content and the caller's right to score it. */
 async function loadForScoring(ctx: AccessContext, assessmentId: string) {
   const assessment = await loadAssessment(ctx, assessmentId);
   if (!assessment) throw new DomainError<AssessmentError>("notFound");
-  if (!allowed(ctx, "assessment.score", scopeOf(assessment))) {
-    throw new ForbiddenError("assessment.score");
-  }
+  if (!canScore(ctx, assessment)) throw new ForbiddenError(scoreAction(assessment));
   if (assessment.status !== "in_progress") {
     throw new DomainError<AssessmentError>("assessmentSubmitted");
   }
@@ -111,12 +138,24 @@ async function loadForScoring(ctx: AccessContext, assessmentId: string) {
 
 export type AssessmentSummary = Awaited<ReturnType<typeof listAssessments>>[number];
 
-export async function listAssessments(ctx: AccessContext, facilityId: string) {
+/** The facility's assessments of one kind that the caller may read, newest first. */
+export async function listAssessments(
+  ctx: AccessContext,
+  facilityId: string,
+  kind: AssessmentKind = "self",
+) {
   if (!(await getFacility(ctx, facilityId))) return [];
-  const rows = await withTenant(ctx, (tx) => repo.listAssessments(tx, ctx.tenantId, facilityId));
+  const rows = await withTenant(ctx, (tx) =>
+    repo.listAssessments(tx, ctx.tenantId, facilityId, kind),
+  );
   return rows
-    .filter((row) => canRead(ctx, scopeOf(row)))
-    .map(({ _count, ...row }) => ({ ...row, scoredCount: _count.scores }));
+    .filter((row) => canRead(ctx, row))
+    .map(({ _count, sample, ...row }) => ({
+      ...row,
+      scoredCount: _count.scores,
+      sampleSize: sample.length,
+      canScore: row.status === "in_progress" && canScore(ctx, row),
+    }));
 }
 
 /** What the caller may start an assessment on: chosen editions and departments they score. */
@@ -210,7 +249,7 @@ export async function getAssessmentSheet(ctx: AccessContext, assessmentId: strin
   if (!content) return null;
   const scores = await withTenant(ctx, (tx) => repo.listScores(tx, ctx.tenantId, assessment.id));
   const scoreByElement = new Map(scores.map((s) => [s.elementId, s]));
-  const scope = scopeElements(content, departmentTypeOf(assessment));
+  const scope = assessmentScope(content, assessment);
   const inScopeIds = new Set(scope.map((e) => e.id));
 
   const standards = content.standards
@@ -271,8 +310,7 @@ export async function getAssessmentSheet(ctx: AccessContext, assessmentId: strin
     framework: content.framework,
     scale: content.scale,
     esrAllowedLevels: content.rollupConfig.esr.allowed_levels,
-    canScore:
-      assessment.status === "in_progress" && allowed(ctx, "assessment.score", scopeOf(assessment)),
+    canScore: assessment.status === "in_progress" && canScore(ctx, assessment),
     progress: progress(scope, scoredIds),
     score: rollup.facility,
     chapters,
@@ -321,9 +359,7 @@ export async function saveElementScore(
 ) {
   const data = scoreInput.parse(input);
   const { assessment, content } = await loadForScoring(ctx, assessmentId);
-  const element = scopeElements(content, departmentTypeOf(assessment)).find(
-    (e) => e.id === elementId,
-  );
+  const element = assessmentScope(content, assessment).find((e) => e.id === elementId);
   if (!element) throw new DomainError<AssessmentError>("unknownElement");
   const level = content.scale.find((l) => l.code === data.levelCode);
   if (!level) throw new DomainError<AssessmentError>("unknownLevel");
@@ -460,7 +496,7 @@ export async function removeEvidence(ctx: AccessContext, evidenceId: string) {
  */
 export async function submitAssessment(ctx: AccessContext, assessmentId: string, now = new Date()) {
   const { assessment, content } = await loadForScoring(ctx, assessmentId);
-  const scope = scopeElements(content, departmentTypeOf(assessment));
+  const scope = assessmentScope(content, assessment);
   const byId = new Map(scope.map((e) => [e.id, e]));
 
   return withTenant(ctx, async (tx) => {
@@ -559,6 +595,114 @@ export async function submitAssessment(ctx: AccessContext, assessmentId: string,
     });
     return { findings: findingIds.length, statusesUpdated: updates.length, verified };
   });
+}
+
+// --- Sampled assessments (tracers) ------------------------------------------------------------
+
+export type CandidateState = "unverified" | "failing" | "met";
+
+/**
+ * The elements a tracer could check, with what is known about each: unverified (never scored
+ * or expired), failing (current score short of full compliance) or met, with when it was
+ * verified. The pool is the department's scope (or the whole facility), narrowed to the
+ * chosen chapters when there are any. Null when the edition is not the facility's.
+ */
+export async function listTracerCandidates(
+  ctx: AccessContext,
+  facilityId: string,
+  input: { frameworkId: string; departmentId: string | null; chapterIds: readonly string[] },
+  now = new Date(),
+) {
+  const content = await getScoringContent(ctx, facilityId, input.frameworkId);
+  if (!content) return null;
+  let departmentType: string | null | undefined;
+  if (input.departmentId) {
+    const department = (await listDepartments(ctx, facilityId)).find(
+      (d) => d.id === input.departmentId,
+    );
+    if (!department) return null;
+    departmentType = department.typeCode;
+  }
+  const chapters = new Set(input.chapterIds);
+  const chapterOf = new Map(content.standards.map((s) => [s.id, s.chapterId]));
+  const pool = scopeElements(content, departmentType).filter(
+    (e) => chapters.size === 0 || chapters.has(chapterOf.get(e.standardId) ?? ""),
+  );
+  const statuses = new Map(
+    (
+      await withTenant(ctx, (tx) =>
+        repo.listStatuses(
+          tx,
+          ctx.tenantId,
+          facilityId,
+          pool.map((e) => e.id),
+        ),
+      )
+    )
+      .filter((s) => s.source === "internal")
+      .map((s) => [s.elementId, toStatusRecord(s)]),
+  );
+  return {
+    framework: content.framework,
+    chapterIds: content.chapters.map((c) => c.id),
+    validityDays: defaultScoreValidityDays,
+    candidates: pool.map((e) => {
+      const status = statuses.get(e.id);
+      if (!status || elementState(status, now) !== "current") {
+        return { elementId: e.id, state: "unverified" as CandidateState, verifiedAt: null };
+      }
+      const level = findLevel(content.scale, status.levelCode);
+      const normalized = level ? normalizedValue(level, content.scale) : 0;
+      return {
+        elementId: e.id,
+        state: (normalized === null || normalized >= 1 ? "met" : "failing") as CandidateState,
+        verifiedAt: status.verifiedAt,
+      };
+    }),
+  };
+}
+
+/**
+ * Starts an assessment over a fixed sample of elements, inside the caller's transaction
+ * (the tracers module records how the sample was drawn in the same one). The caller checks
+ * the right to start it; the run is then scored under `tracer.run` by its assignee or by
+ * anyone who manages the scope.
+ */
+export async function createSampledAssessment(
+  tx: Tx,
+  ctx: AccessContext,
+  input: {
+    facilityId: string;
+    frameworkId: string;
+    departmentId: string | null;
+    elementIds: readonly string[];
+    assignedTo: string;
+    now: Date;
+  },
+) {
+  const { id } = await repo.insertAssessment(tx, ctx.tenantId, {
+    facilityId: input.facilityId,
+    frameworkId: input.frameworkId,
+    departmentId: input.departmentId,
+    startedBy: ctx.userId,
+    startedAt: input.now,
+    kind: "tracer",
+    assignedTo: input.assignedTo,
+  });
+  await repo.insertSample(tx, ctx.tenantId, id, input.elementIds);
+  await recordAudit(tx, ctx, {
+    action: "create",
+    entity: "assessment",
+    entityId: id,
+    after: {
+      kind: "tracer",
+      source: "internal",
+      departmentId: input.departmentId,
+      assignedTo: input.assignedTo,
+      sample: input.elementIds.length,
+    },
+  });
+  return id;
 }
 
 // --- Readiness ------------------------------------------------------------------------------

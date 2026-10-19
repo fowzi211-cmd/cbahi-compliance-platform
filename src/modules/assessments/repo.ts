@@ -1,5 +1,5 @@
 import type { Tx } from "@/lib/db";
-import type { EvidenceKind } from "./domain/assessment";
+import type { AssessmentKind, EvidenceKind } from "./domain/assessment";
 import type { ScoreSource } from "./domain/expiry";
 
 // Tenant-owned; every query runs inside withTenant() and still names the tenant.
@@ -16,14 +16,21 @@ const assessmentSelect = {
   startedAt: true,
   submittedBy: true,
   submittedAt: true,
+  assignedTo: true,
   framework: { select: { code: true, edition: true, nameAr: true, nameEn: true } },
   department: { select: { nameAr: true, nameEn: true, typeCode: true } },
+  sample: { select: { elementId: true } },
   _count: { select: { scores: true } },
 } as const;
 
-export function listAssessments(tx: Tx, tenantId: string, facilityId: string) {
+export function listAssessments(
+  tx: Tx,
+  tenantId: string,
+  facilityId: string,
+  kind: AssessmentKind,
+) {
   return tx.assessment.findMany({
-    where: { tenantId, facilityId },
+    where: { tenantId, facilityId, kind },
     orderBy: [{ startedAt: "desc" }, { id: "desc" }],
     select: assessmentSelect,
   });
@@ -50,9 +57,23 @@ export function insertAssessment(
     departmentId: string | null;
     startedBy: string;
     startedAt: Date;
+    kind?: AssessmentKind;
+    assignedTo?: string | null;
   },
 ) {
   return tx.assessment.create({ data: { tenantId, ...data }, select: { id: true } });
+}
+
+/** Fixes the elements a sampled assessment covers. */
+export function insertSample(
+  tx: Tx,
+  tenantId: string,
+  assessmentId: string,
+  elementIds: readonly string[],
+) {
+  return tx.assessmentElement.createMany({
+    data: elementIds.map((elementId) => ({ tenantId, assessmentId, elementId })),
+  });
 }
 
 export function markSubmitted(
