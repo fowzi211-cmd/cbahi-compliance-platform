@@ -1,0 +1,16 @@
+import type { Metadata } from "next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "مستمر | Mustamir",
+  description: "Continuous accreditation compliance for healthcare facilities",
+};
+
+// Arabic is the default locale. Locale routing and the `dir` switch arrive in M1.
+export default function RootLayout({ children }: LayoutProps<"/">) {
+  return (
+    <html lang="ar" dir="rtl" className="h-full antialiased">
+      <body className="flex min-h-full flex-col">{children}</body>
+    </html>
+  );
+}
