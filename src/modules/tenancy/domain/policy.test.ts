@@ -29,6 +29,7 @@ const matrix: Record<Action, [Cell, Cell, Cell, Cell, Cell, Cell]> = {
   "subscription.view": ["yes", "no", "no", "no", "no", "no"],
   "assessment.score": ["yes", "yes", "ownDept", "no", "no", "no"],
   "tracer.run": ["yes", "yes", "ownDept", "assigned", "no", "no"],
+  "tracer.manage": ["yes", "yes", "ownDept", "no", "no", "no"],
   "mockSurvey.run": ["no", "internal", "no", "no", "consultant", "no"],
   "document.upload": ["yes", "yes", "ownDept", "yes", "no", "no"],
   "document.approve": ["yes", "yes", "no", "no", "no", "no"],

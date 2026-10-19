@@ -248,6 +248,13 @@ erDiagram
 - **Triggers:** an item cannot become `done` without at least one `capa_evidence` row, and the evidence of a done or cancelled item cannot be added, changed or removed until it is reopened.
 - Both new tables have `tenant_id`, composite foreign keys and the `tenant_isolation` RLS policy.
 
+**As built in M11** (differences from the diagram above):
+
+- A tracer run is an `assessment` with `kind = tracer` and `assigned_to` (who walks it; a CHECK allows it on tracers only). Its scope is the fixed sample in `assessment_element (assessment_id, element_id)`, written when the run starts and refused afterwards by a trigger, so a run's elements cannot be swapped for easier ones.
+- `tracer_template` stores `framework_id`, `department_id` (null for the whole facility), `name_ar`/`name_en` (at least one), `sample_size` (1 to 30), `frequency` (`weekly | monthly`), an optional `assignee_user_id` and `archived_at`. The pool is `tracer_template_chapter` (no rows means every chapter) instead of a jsonb list of elements, so a pool follows the facility's applicability decisions and the department's type.
+- `tracer_run (assessment_id, template_id, seed, candidates, sample_size)` records the draw: the 32-hex-digit seed and every candidate with its weight at that moment. A trigger refuses any change. The run screen re-draws from these and says whether it gives back the same sample.
+- All four new tables have `tenant_id`, composite foreign keys and the `tenant_isolation` RLS policy.
+
 ### 3.4 Documents, committees, notifications, audit
 
 ```mermaid
@@ -323,6 +330,13 @@ erDiagram
 - _Readiness._ The dashboard evaluates the internal series per edition the facility uses, as of now. Score validity is the default 90 days until per-tenant settings arrive.
 - _Who._ Scoring follows `assessment.score` (owner and quality manager facility-wide, department head for their own department). Anyone with `dashboard.view` for the scope can read an assessment and its findings; facility-level readiness needs facility-wide `dashboard.view`.
 
+**As built in M11** (`tracers/domain/`, `tracers/service.ts`):
+
+- _Sampling._ Each candidate gets a weight: 4 when never verified or expired, 3 when its current score is short of full compliance, and from 1 to 2 when met, rising with the age of the check up to the score's validity. A known gap therefore always outweighs a stale compliant check. The draw is weighted sampling without replacement (Efraimidis–Spirakis, keys `ln(u)/w`) on a seeded 128-bit generator, ordered by element id, so the same seed and candidates always give the same sample. A pool smaller than the sample is taken whole.
+- _Schedule._ A template is due on the day it is made, then one period (7 days, or one calendar month kept to the month's last day) after its last run started. It is overdue once a further whole period passes without a run. One run per template is open at a time.
+- _Results._ A run is scored like any assessment (rule 1: Met and Partially Met need evidence, here an observation, interview or record review), and submitting it updates `ElementStatus`, raises findings and verifies closed ones exactly as a self-assessment does. Every sampled element must be checked before submitting.
+- _Who._ `tracer.manage` (owner and quality manager facility-wide, department head for their department) creates and archives templates. `tracer.run` adds the assignee: a staff member assigned to a template can start and walk its runs. A run started by a manager is assigned to the template's assignee if there is one. Self-assessment lists leave tracer runs out; they have their own screen.
+
 **As built in M8** (`documents/domain/`, `documents/service.ts`):
 
 - _Document lifecycle (rule 8)._ An approved version is _current_, _due for review_ from its review date (still in force: review is a reminder), and _expired_ the day after its expiry date (a cut-off). Only a current or review-due version of a document that is not retired can be cited; an expired one is refused. Dates must run effective → review → expiry. A rejection needs a comment. Uploaders may approve their own version; the audit event records `selfApproved` so a reviewer can see it. Review and expiry reminders arrive with the notification jobs (M10): review-due and expiring-soon (30 days before expiry) go into the daily digest, and expiry is an immediate notice, to the document owner, quality managers and facility owners. Showing the elements whose cited document has expired moves to the M13 readiness view, which computes it from the dates rather than storing a flag.
@@ -356,6 +370,7 @@ erDiagram
 | Facility settings, users, subscription | ✓     | users only  | –         | –            | –             | –      |
 | Self-assessment: score                 | ✓     | ✓           | own dept  | –            | –             | –      |
 | Tracer: run                            | ✓     | ✓           | own dept  | ✓ (assigned) | –             | –      |
+| Tracer: templates                      | ✓     | ✓           | own dept  | –            | –             | –      |
 | Mock survey: run and lock              | –     | internal    | –         | –            | ✓             | –      |
 | Documents: upload                      | ✓     | ✓           | own dept  | ✓            | –             | –      |
 | Documents: approve                     | ✓     | ✓           | –         | –            | –             | –      |

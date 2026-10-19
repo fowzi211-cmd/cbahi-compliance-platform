@@ -60,6 +60,14 @@ import {
 } from "@/modules/standards/service";
 import { getSurveyCycle, saveSurveyCycle } from "@/modules/surveys/service";
 import {
+  archiveTemplate,
+  createTemplate,
+  getRun,
+  getTemplateOptions,
+  listTracers,
+  startRun,
+} from "@/modules/tracers/service";
+import {
   acceptInvitation,
   addMembership,
   archiveDepartment,
@@ -108,6 +116,8 @@ let bDocument: { documentId: string; versionId: string };
 let bPendingVersionId: string;
 let bCapa: { findingId: string; itemId: string; evidenceId: string };
 let bNoticeId: string;
+let bTemplateId: string;
+let bRunId: string;
 
 beforeAll(async () => {
   [a, b] = await Promise.all([makeTenant("A"), makeTenant("B")]);
@@ -196,6 +206,20 @@ beforeAll(async () => {
     );
   }
   bNoticeId = (await listNotifications(b.ctx, "en"))[0]!.id;
+
+  // A tracer template with an open run in each tenant.
+  for (const t of [a, b]) {
+    const options = (await getTemplateOptions(t.ctx, t.facility.id))!;
+    const templateId = await createTemplate(t.ctx, t.facility.id, {
+      nameEn: "Isolation tracer",
+      frameworkId: sharedFrameworkId,
+      chapterIds: [options.frameworks[0]!.chapters[0]!.id],
+      sampleSize: 1,
+      frequency: "weekly",
+    });
+    const runId = await startRun(t.ctx, templateId);
+    if (t === b) [bTemplateId, bRunId] = [templateId, runId];
+  }
 });
 
 afterAll(disconnectDb);
@@ -430,6 +454,32 @@ describe("service layer with a fooled permission check", () => {
     expect(await getPreferences(b.ctx)).toMatchObject({ emailImmediate: false, locale: "en" });
   });
 
+  it("cannot read, start or change another tenant's tracers", async () => {
+    expect(await listTracers(aForged, b.facility.id)).toEqual({ templates: [], runs: [] });
+    expect(await getTemplateOptions(aForged, b.facility.id)).toBeNull();
+    expect(await getRun(aForged, bRunId)).toBeNull();
+    await expect(startRun(aForged, bTemplateId)).rejects.toThrow();
+    await expect(archiveTemplate(aForged, bTemplateId)).rejects.toThrow();
+    await expect(
+      createTemplate(aForged, b.facility.id, {
+        nameEn: "Hijack",
+        frameworkId: sharedFrameworkId,
+        sampleSize: 1,
+        frequency: "weekly",
+      }),
+    ).rejects.toThrow();
+    const sheet = (await getRun(b.ctx, bRunId))!.sheet;
+    const element = sheet.chapters[0]!.standards[0]!.elements[0]!;
+    await expect(
+      saveElementScore(aForged, bRunId, element.id, { levelCode: "NM", comment: "hijack" }),
+    ).rejects.toThrow();
+
+    // B's tracer is untouched.
+    const bView = await listTracers(b.ctx, b.facility.id);
+    expect(bView.templates.map((t) => [t.id, t.openRunId])).toEqual([[bTemplateId, bRunId]]);
+    expect((await getRun(b.ctx, bRunId))!.sheet.progress.scored).toBe(0);
+  });
+
   it("sees only its own subscription and audit trail", async () => {
     expect((await getSubscription(a.ctx))?.tenantId).toBe(a.tenant.id);
     const events = await listAuditEvents(a.ctx);
@@ -463,6 +513,10 @@ describe("database layer (RLS) on its own", () => {
     capa_evidence: "tenant_id",
     notification: "tenant_id",
     notification_preference: "tenant_id",
+    assessment_element: "tenant_id",
+    tracer_template: "tenant_id",
+    tracer_template_chapter: "tenant_id",
+    tracer_run: "tenant_id",
   };
 
   it.each(Object.entries(tenantColumn))(
