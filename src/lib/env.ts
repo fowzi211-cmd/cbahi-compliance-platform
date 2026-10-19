@@ -1,13 +1,15 @@
 import { z } from "zod";
 
+const postgresUrl = (name: string) =>
+  z.string().regex(/^postgres(ql)?:\/\//, `${name} must be a postgres:// connection string`);
+
 // Every environment variable the app reads is declared here and validated once at startup.
 // Keep this in sync with `.env.example`.
 export const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   APP_URL: z.url().default("http://localhost:3000"),
-  DATABASE_URL: z
-    .string()
-    .regex(/^postgres(ql)?:\/\//, "DATABASE_URL must be a postgres:// connection string"),
+  DATABASE_URL: postgresUrl("DATABASE_URL"),
+  DATABASE_SYSTEM_URL: postgresUrl("DATABASE_SYSTEM_URL"),
   S3_ENDPOINT: z.url(),
   S3_REGION: z.string().min(1),
   S3_BUCKET: z.string().min(1),
