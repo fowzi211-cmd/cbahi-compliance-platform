@@ -30,12 +30,25 @@
   },
   "dashboard": {
     "title": "Readiness dashboard",
-    "intro": "This dashboard will show compliance by chapter and department, essential safety requirement status, overdue action items and the compliance trend over time.",
+    "intro": "Compliance and the state of essential safety requirements (ESR), from your facility's current scores.",
     "emptyTitle": "No data yet",
     "emptyBody": "Set up your facility, then run a first self-assessment to see results here.",
     "setupTitle": "Finish setting up your facility",
     "setupBody": "Steps done: {done} of {total}. Once setup is done, the elements that apply to your facility show up here.",
-    "setupCta": "Continue setup"
+    "setupCta": "Continue setup",
+    "readiness": {
+      "status": {
+        "not_ready": "Not ready",
+        "at_risk": "At risk",
+        "ready": "Ready"
+      },
+      "noScore": "No score yet",
+      "coverage": "Elements with a current score: {scored} of {counted}",
+      "esrNotMet": "ESR elements not met: {count}",
+      "esrUnverified": "ESR elements not verified: {count}",
+      "expired": "Expired scores: {count}",
+      "cta": "Self-assessment"
+    }
   },
   "notFound": {
     "title": "Page not found",
@@ -527,5 +540,104 @@
   },
   "settings": {
     "intro": "Change your facility's details and what applies to it at any time. Each section is a setup step."
+  },
+  "assessments": {
+    "list": {
+      "title": "Self-assessment",
+      "intro": "Score the framework's elements for the whole facility or one department, with comments and evidence. Submitting locks the assessment, updates readiness and raises findings automatically.",
+      "startTitle": "New assessment",
+      "framework": "Framework",
+      "scope": "Scope",
+      "wholeFacility": "Whole facility",
+      "start": "Start assessment",
+      "noFrameworks": "No framework has been chosen for this facility yet. Choose one in Settings first.",
+      "heading": "Assessments",
+      "empty": "No assessments yet.",
+      "scored": "Elements scored: {count}",
+      "startedOn": "Started {date}",
+      "submittedOn": "Submitted {date}",
+      "open": "Open"
+    },
+    "status": {
+      "in_progress": "In progress",
+      "submitted": "Submitted and locked"
+    },
+    "sheet": {
+      "back": "All assessments",
+      "title": "Self-assessment: {scope}",
+      "progress": "Progress: {scored} of {total}",
+      "score": "Compliance in this assessment: {percent}",
+      "noScore": "No score yet.",
+      "notScored": "Not scored",
+      "lockedNote": "This assessment was submitted and locked, so it cannot be changed. Corrections need a new assessment.",
+      "readOnly": "You can view this assessment but not change it."
+    },
+    "score": {
+      "legend": "Score",
+      "comment": "Comment",
+      "commentHint": "Required for “Not applicable”. Describe what you saw, without anything that identifies a patient.",
+      "esrHint": "ESR element: either met or not met.",
+      "evidenceLegend": "Add evidence (optional)",
+      "evidenceKind": "Evidence type",
+      "noEvidence": "No new evidence",
+      "note": "Evidence description",
+      "noteHint": "What you saw, heard or reviewed, without anything that identifies a patient.",
+      "url": "Document link",
+      "urlHint": "Until the document library is available, cite a document by its link.",
+      "save": "Save score",
+      "saved": "Score saved.",
+      "scoredOn": "Scored {date}",
+      "evidenceTitle": "Evidence",
+      "noEvidenceYet": "No evidence yet.",
+      "removeEvidence": "Remove evidence"
+    },
+    "evidenceKinds": {
+      "document": "Document (link)",
+      "observation": "Observation",
+      "interview": "Interview",
+      "record_review": "Record review",
+      "kpi": "KPI"
+    },
+    "submit": {
+      "title": "Submit the assessment",
+      "body": "Submitting locks the assessment, updates the elements' status and readiness, and raises findings automatically for elements not met or partially met.",
+      "incompleteBody": "Score every element before submitting. Elements left: {count}",
+      "button": "Submit and lock"
+    },
+    "findings": {
+      "title": "Findings raised",
+      "empty": "This assessment raised no findings.",
+      "severity": {
+        "esr": "ESR",
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      },
+      "status": {
+        "open": "Open",
+        "in_progress": "In progress",
+        "closed": "Closed",
+        "verified": "Verified"
+      }
+    },
+    "errors": {
+      "invalid": "Check the details you entered.",
+      "forbidden": "You are not allowed to do this.",
+      "notFound": "Assessment not found.",
+      "assessmentSubmitted": "This assessment was submitted and locked, so it cannot be changed.",
+      "unknownFramework": "This framework is not chosen for your facility.",
+      "unknownDepartment": "That department is not in this facility.",
+      "nothingToScore": "There are no elements to score in this scope. Check that the department has a type.",
+      "unknownElement": "This element is not in the assessment's scope.",
+      "incomplete": "Score every element before submitting.",
+      "urlRequired": "Add the document's link.",
+      "invalidUrl": "The link must start with https:// or http://.",
+      "noteRequired": "Describe the evidence.",
+      "unknownLevel": "Choose a score.",
+      "elementNotApplicable": "This element was recorded as not applicable to your facility, so it is not scored.",
+      "esrLevelNotAllowed": "ESR elements take only “Met” or “Not met”.",
+      "evidenceRequired": "This score needs at least one piece of evidence.",
+      "commentRequired": "Say in the comment why the element is not applicable."
+    }
   }
 }

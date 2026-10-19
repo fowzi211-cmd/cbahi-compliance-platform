@@ -8,6 +8,7 @@ import { allowed, getFacility, type AccessContext } from "@/modules/tenancy/serv
 import {
   applicabilityChange,
   buildApplicabilityView,
+  resolveApplicability,
   suggestedPrograms,
   type ApplicabilityFilter,
 } from "./domain/applicability";
@@ -23,6 +24,7 @@ import {
 import {
   importDocumentSchema,
   limits,
+  rollupConfigSchema,
   type ImportDocument,
   type ImportFormat,
 } from "./domain/import-format";
@@ -637,6 +639,65 @@ export async function decideApplicability(
     return { applicable: change.applicable };
   });
 }
+
+/**
+ * One chosen edition as the scoring engine needs it: the scale, the roll-up settings, and
+ * every element with its weight and whether it applies to the facility (framework rule plus
+ * the facility's own decision). Null when the facility is not the caller's or does not use
+ * that edition. Numbers are plain numbers here so other modules never see Prisma decimals.
+ */
+export async function getScoringContent(
+  ctx: AccessContext,
+  facilityId: string,
+  frameworkId: string,
+) {
+  if (!z.uuid().safeParse(frameworkId).success) return null;
+  const facility = await getFacility(ctx, facilityId);
+  if (!facility) return null;
+  return withTenant(ctx, async (tx) => {
+    const chosen = await repo.listFacilityFrameworks(tx, ctx.tenantId, facilityId);
+    if (!chosen.some((c) => c.frameworkId === frameworkId)) return null;
+    const [content, overrides] = await Promise.all([
+      repo.listScoringContent(tx, frameworkId),
+      repo.listApplicabilityOverrides(tx, ctx.tenantId, facilityId),
+    ]);
+    if (!content) return null;
+    const byElement = new Map(overrides.map((o) => [o.elementId, o]));
+    const config = rollupConfigSchema.parse(content.framework.rollupConfig);
+    return {
+      framework: {
+        id: content.framework.id,
+        code: content.framework.code,
+        edition: content.framework.edition,
+        nameAr: content.framework.nameAr,
+        nameEn: content.framework.nameEn,
+        status: content.framework.status,
+      },
+      rollupConfig: config,
+      scale: content.scale.map((l) => ({
+        id: l.id,
+        code: l.code,
+        labelAr: l.labelAr,
+        labelEn: l.labelEn,
+        value: Number(l.value),
+        countsInDenominator: l.countsInDenominator,
+        requiresEvidence: l.requiresEvidence,
+        generatesFinding: l.generatesFinding,
+      })),
+      chapters: content.chapters,
+      standards: content.standards.map((s) => ({ ...s, weight: Number(s.weight) })),
+      elements: content.elements.map((e) => {
+        const override = byElement.get(e.id);
+        return {
+          ...e,
+          weight: Number(e.weight),
+          applicable: resolveApplicability(e, facility.type, override ?? null).applicable,
+        };
+      }),
+    };
+  });
+}
+export type ScoringContent = NonNullable<Awaited<ReturnType<typeof getScoringContent>>>;
 
 // --- Seeding ------------------------------------------------------------------------------------
 

@@ -230,6 +230,16 @@ erDiagram
 - A **tracer run** is an `Assessment(kind=tracer)` over a random sample of the template's element pool. Sampling is weighted toward elements whose status is oldest or failing. The seed is stored for audit.
 - **Mock survey** is `Assessment(kind=mock_survey, source=consultant|internal)`. Once locked, it becomes the source of the PDF report.
 
+**As built in M7** (differences from the diagram above):
+
+- `assessment.status` is `in_progress | submitted`. Submitting is the lock; `draft` and a separate `locked` state are not needed for self-assessment and can be added when mock surveys need them. A CHECK ties `submitted_at` to `submitted`.
+- A **trigger** refuses any UPDATE or DELETE of a submitted assessment and any INSERT, UPDATE or DELETE of its scores or evidence, whatever the application does. Corrections are a new assessment.
+- `element_score` stores `score_level_id` (the edition's level) with `unique(assessment_id, element_id)`. `scored_at` is server time, reset on every save.
+- `score_evidence` has `kind`, `note` and `url`. Until M8 a `document` is cited by link (http or https only, opened with `rel="noopener noreferrer nofollow"`); M8 adds `document_version_id`. A CHECK requires a link for a document and a note for every other kind.
+- `element_status` stores `level_code` and `element_score_id` and is unique per `(facility_id, element_id, source)`.
+- `finding` lives in the `findings` module (`raiseFindings(tx, ctx, …)` runs inside the submit transaction). It stores `statement` (the scorer's comment, in the language it was written in) instead of `statement_ar`/`statement_en`, plus `element_id`, `department_id` and `level_code` so later screens need no joins through the score.
+- All five tables have `tenant_id`, composite foreign keys and the `tenant_isolation` RLS policy.
+
 ### 3.4 Documents, committees, notifications, audit
 
 ```mermaid
@@ -281,6 +291,15 @@ erDiagram
 - _Readiness (rule 4)._ `ready` needs a score of at least `readyScore` (default 0.8, inclusive) and at most `maxOverdueCapa` (default 5) overdue CAPA items. With nothing to score it is `at_risk`. The reasons are returned with the status.
 - _Expiry (rule 5)._ Runs from when the score was recorded (server time), not from when the assessment was submitted: an observation is as old as the day it was made. Expired from the expiry instant on. The validity is a positive whole number of days.
 - _ElementStatus._ One row per element **per source**, so a consultant score never replaces an internal one (decision 7). A submitted score replaces the status unless the status comes from a newer score, so submitting an old draft late cannot roll an element back. `evaluateFacility` chains current levels → roll-up → readiness for one series at a given `now`.
+
+**As built in M7** (`assessments/domain/assessment.ts`, `findings/domain/severity.ts`, `assessments/service.ts`):
+
+- _Scope._ A whole-facility assessment covers every applicable element. A department assessment covers the applicable elements whose `department_types` include the department's type; facility-wide elements (no department types) stay with the whole-facility assessment, so a department head never answers for governance they do not run. A department with no type, or no element of its type, cannot be assessed (`nothingToScore`).
+- _Saving a score._ The score is saved with any new evidence, then rule 1 is checked against what is stored, so evidence added earlier counts; a broken rule rolls the save back. Evidence of a level that requires it cannot be removed down to none.
+- _Submit._ Every element in scope must be scored (`incomplete`), because a surveyor scores every applicable element. Submitting writes `ElementStatus` (rule above), raises the findings and locks the assessment in one transaction.
+- _Finding severity (rule 6)._ `esr` for an ESR element; otherwise `high` when the level has no compliance (normalized 0) and `medium` for partial compliance. `low` is left for findings raised by hand.
+- _Readiness._ The dashboard evaluates the internal series per edition the facility uses, as of now; overdue CAPA counts as 0 until M9. Score validity is the default 90 days until per-tenant settings arrive.
+- _Who._ Scoring follows `assessment.score` (owner and quality manager facility-wide, department head for their own department). Anyone with `dashboard.view` for the scope can read an assessment and its findings; facility-level readiness needs facility-wide `dashboard.view`.
 
 ## 5. Multi-tenancy and isolation
 
