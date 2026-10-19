@@ -6,6 +6,12 @@ import {
   previewImport,
   setLicenseNote,
 } from "@/modules/standards/service";
+import {
+  getAssessmentSheet,
+  saveElementScore,
+  startAssessment,
+  submitAssessment,
+} from "@/modules/assessments/service";
 import { createTenant, loadAccessContext, type AccessContext } from "@/modules/tenancy/service";
 
 export async function makeTenant(label: string) {
@@ -56,6 +62,8 @@ export function demoEditionJson(
     elements?: string[];
     // Facility types per element number, e.g. { "3": "hospital" }.
     facilityTypes?: Record<string, string>;
+    // Department types per element number; by default element 2 belongs to nursing.
+    departmentTypes?: Record<string, string>;
   } = {},
 ) {
   const elements = options.elements ?? ["1", "2", "3"];
@@ -84,7 +92,11 @@ export function demoEditionJson(
       title_ar: `عنصر تجريبي ${n}`,
       title_en: `Demo element ${n}`,
       is_esr: esr.has(n),
-      department_types: n === "2" ? "nursing" : "",
+      department_types: options.departmentTypes
+        ? (options.departmentTypes[n] ?? "")
+        : n === "2"
+          ? "nursing"
+          : "",
       facility_types: options.facilityTypes?.[n] ?? "",
     })),
   });
@@ -109,4 +121,38 @@ export async function publishDemoEdition(
   await setLicenseNote(admin, frameworkId, "Fictional demo content.");
   await activateEdition(admin, frameworkId);
   return { frameworkId, code, admin };
+}
+
+/**
+ * Runs a whole-facility self-assessment to the end: the first scorable element Partially Met
+ * with an observation, every other one Not Met (or Met for ESR-free scales). Leaves an
+ * assessment, scores, evidence, element statuses and findings behind.
+ */
+export async function submitDemoAssessment(
+  ctx: AccessContext,
+  facilityId: string,
+  frameworkId: string,
+) {
+  const assessmentId = await startAssessment(ctx, facilityId, { frameworkId });
+  const sheet = (await getAssessmentSheet(ctx, assessmentId))!;
+  const elements = sheet.chapters.flatMap((c) => c.standards.flatMap((s) => s.elements));
+  let evidenceId: string | null = null;
+  for (const element of elements) {
+    if (!evidenceId && !element.isEsr) {
+      evidenceId = (
+        await saveElementScore(ctx, assessmentId, element.id, {
+          levelCode: "PM",
+          comment: "Partly in place.",
+          evidence: { kind: "observation", note: "Checklist seen, two gaps." },
+        })
+      ).evidenceId;
+    } else {
+      await saveElementScore(ctx, assessmentId, element.id, {
+        levelCode: "NM",
+        comment: "Not in place yet.",
+      });
+    }
+  }
+  await submitAssessment(ctx, assessmentId);
+  return { assessmentId, evidenceId: evidenceId! };
 }

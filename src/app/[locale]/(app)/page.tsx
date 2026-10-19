@@ -5,6 +5,8 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { requireAppContext } from "@/lib/session";
+import { getReadiness } from "@/modules/assessments/service";
+import { ReadinessCards } from "@/modules/assessments/ui/ReadinessCards";
 import { allowed, getOnboardingProgress, onboardingSteps } from "@/modules/tenancy/service";
 
 export default async function DashboardPage({ params }: PageProps<"/[locale]">) {
@@ -21,11 +23,35 @@ export default async function DashboardPage({ params }: PageProps<"/[locale]">) 
       <Suspense>
         <SetupReminder locale={locale as Locale} />
       </Suspense>
-      <Card>
-        <CardTitle>{t("emptyTitle")}</CardTitle>
-        <CardDescription className="mt-2">{t("emptyBody")}</CardDescription>
-      </Card>
+      <Suspense>
+        <Readiness locale={locale as Locale} />
+      </Suspense>
     </div>
+  );
+}
+
+/** Readiness from the current internal scores, or a pointer to the first assessment. */
+async function Readiness({ locale }: { locale: Locale }) {
+  const t = await getTranslations({ locale, namespace: "dashboard" });
+  const ctx = await requireAppContext(locale);
+  const readiness = await getReadiness(ctx.access, ctx.facilityId);
+  const anyScored = readiness.some((r) => r.scored > 0);
+
+  return (
+    <>
+      {readiness.length > 0 && <ReadinessCards locale={locale} readiness={readiness} />}
+      {!anyScored && (
+        <Card>
+          <CardTitle>{t("emptyTitle")}</CardTitle>
+          <CardDescription className="mt-2">{t("emptyBody")}</CardDescription>
+        </Card>
+      )}
+      <div>
+        <Button asChild variant="outline">
+          <Link href="/assessments">{t("readiness.cta")}</Link>
+        </Button>
+      </div>
+    </>
   );
 }
 

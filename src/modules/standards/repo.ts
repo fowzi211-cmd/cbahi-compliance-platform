@@ -448,3 +448,51 @@ export function deleteApplicability(
 ) {
   return tx.elementApplicability.deleteMany({ where: { tenantId, facilityId, elementId } });
 }
+
+/** Everything the assessment screens need from one edition, in display order. */
+export async function listScoringContent(tx: Tx, frameworkId: string) {
+  const [framework, scale, chapters, standards, elements] = await Promise.all([
+    tx.framework.findUnique({
+      where: { id: frameworkId },
+      select: {
+        id: true,
+        code: true,
+        edition: true,
+        nameAr: true,
+        nameEn: true,
+        status: true,
+        rollupConfig: true,
+      },
+    }),
+    tx.scoreLevel.findMany({ where: { frameworkId }, orderBy: { sort: "asc" } }),
+    tx.chapter.findMany({
+      where: { frameworkId },
+      orderBy: { sort: "asc" },
+      select: { id: true, code: true, titleAr: true, titleEn: true },
+    }),
+    tx.standard.findMany({
+      where: { frameworkId },
+      orderBy: { sort: "asc" },
+      select: { id: true, chapterId: true, code: true, titleAr: true, titleEn: true, weight: true },
+    }),
+    tx.element.findMany({
+      where: { frameworkId },
+      orderBy: { sort: "asc" },
+      select: {
+        id: true,
+        standardId: true,
+        code: true,
+        titleAr: true,
+        titleEn: true,
+        descriptionAr: true,
+        descriptionEn: true,
+        isEsr: true,
+        weight: true,
+        evidenceTypes: true,
+        facilityTypes: true,
+        departmentTypes: true,
+      },
+    }),
+  ]);
+  return framework ? { framework, scale, chapters, standards, elements } : null;
+}

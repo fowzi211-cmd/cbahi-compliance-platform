@@ -11,7 +11,8 @@ export type AuditAction =
   | "accept"
   | "activate"
   | "retire"
-  | "complete";
+  | "complete"
+  | "submit";
 
 export type AuditEventInput = {
   action: AuditAction;

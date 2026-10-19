@@ -2,7 +2,18 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { disconnectDb, withoutTenant, withTenant } from "@/lib/db";
 import { ForbiddenError } from "@/lib/errors";
+import {
+  getAssessmentSheet,
+  getReadiness,
+  getStartOptions,
+  listAssessments,
+  removeEvidence,
+  saveElementScore,
+  startAssessment,
+  submitAssessment,
+} from "@/modules/assessments/service";
 import { listAuditEvents } from "@/modules/audit/service";
+import { listFindings } from "@/modules/findings/service";
 import {
   activateEdition,
   browseLibrary,
@@ -43,6 +54,7 @@ import {
   forgedContext,
   makeTenant,
   publishDemoEdition,
+  submitDemoAssessment,
   uniqueEmail,
   uniqueFrameworkCode,
 } from "./helpers";
@@ -57,6 +69,8 @@ let bDepartmentId: string;
 let bInvitationId: string;
 let sharedFrameworkId: string;
 let bElementId: string;
+let bAssessment: { assessmentId: string; evidenceId: string };
+let bOpenAssessmentId: string;
 
 beforeAll(async () => {
   [a, b] = await Promise.all([makeTenant("A"), makeTenant("B")]);
@@ -97,6 +111,14 @@ beforeAll(async () => {
     await saveSurveyCycle(t.ctx, t.facility.id, { status: "never_surveyed" });
     await completeOnboardingStep(t.ctx, t.facility.id, "facility");
   }
+
+  // A submitted self-assessment in each tenant (scores, evidence, statuses, findings), and an
+  // open one in B to try writing into.
+  await submitDemoAssessment(a.ctx, a.facility.id, sharedFrameworkId);
+  bAssessment = await submitDemoAssessment(b.ctx, b.facility.id, sharedFrameworkId);
+  bOpenAssessmentId = await startAssessment(b.ctx, b.facility.id, {
+    frameworkId: sharedFrameworkId,
+  });
 });
 
 afterAll(disconnectDb);
@@ -202,6 +224,33 @@ describe("service layer with a fooled permission check", () => {
     expect(bView.view.counts.notApplicable).toBe(1);
   });
 
+  it("cannot read or change another tenant's assessments and findings", async () => {
+    const bSheet = (await getAssessmentSheet(b.ctx, bOpenAssessmentId))!;
+    const bElement = bSheet.chapters[0]!.standards[0]!.elements.find((e) => !e.isEsr)!;
+    expect(await listAssessments(aForged, b.facility.id)).toEqual([]);
+    expect(await getStartOptions(aForged, b.facility.id)).toBeNull();
+    expect(await getAssessmentSheet(aForged, bAssessment.assessmentId)).toBeNull();
+    expect(await getAssessmentSheet(aForged, bOpenAssessmentId)).toBeNull();
+    expect(await listFindings(aForged, b.facility.id)).toEqual([]);
+    expect(await getReadiness(aForged, b.facility.id)).toEqual([]);
+    await expect(
+      startAssessment(aForged, b.facility.id, { frameworkId: sharedFrameworkId }),
+    ).rejects.toThrow();
+    await expect(
+      saveElementScore(aForged, bOpenAssessmentId, bElement.id, {
+        levelCode: "NM",
+        comment: "hijack",
+      }),
+    ).rejects.toThrow();
+    await expect(removeEvidence(aForged, bAssessment.evidenceId)).rejects.toThrow();
+    await expect(submitAssessment(aForged, bOpenAssessmentId)).rejects.toThrow();
+
+    // B's own records are untouched.
+    expect((await getAssessmentSheet(b.ctx, bOpenAssessmentId))?.progress.scored).toBe(0);
+    expect(await listFindings(b.ctx, b.facility.id)).toHaveLength(2);
+    expect(await listAssessments(b.ctx, b.facility.id)).toHaveLength(2);
+  });
+
   it("sees only its own subscription and audit trail", async () => {
     expect((await getSubscription(a.ctx))?.tenantId).toBe(a.tenant.id);
     const events = await listAuditEvents(a.ctx);
@@ -222,6 +271,11 @@ describe("database layer (RLS) on its own", () => {
     facility_framework: "tenant_id",
     element_applicability: "tenant_id",
     survey_cycle: "tenant_id",
+    assessment: "tenant_id",
+    element_score: "tenant_id",
+    score_evidence: "tenant_id",
+    element_status: "tenant_id",
+    finding: "tenant_id",
   };
 
   it.each(Object.entries(tenantColumn))(

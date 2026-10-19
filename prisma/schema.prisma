@@ -39,6 +39,11 @@ model Tenant {
   facilityFrameworks   FacilityFramework[]
   elementApplicability ElementApplicability[]
   surveyCycles         SurveyCycle[]
+  assessments          Assessment[]
+  elementScores        ElementScore[]
+  scoreEvidence        ScoreEvidence[]
+  elementStatuses      ElementStatus[]
+  findings             Finding[]
 
   @@map("tenant")
 }
@@ -84,6 +89,9 @@ model Facility {
   frameworks    FacilityFramework[]
   applicability ElementApplicability[]
   surveyCycle   SurveyCycle?
+  assessments   Assessment[]
+  statuses      ElementStatus[]
+  findings      Finding[]
 
   @@unique([tenantId, id])
   @@index([tenantId])
@@ -108,6 +116,7 @@ model Department {
   type        DepartmentType? @relation(fields: [typeCode], references: [code])
   memberships Membership[]
   invitations Invitation[]
+  assessments Assessment[]
 
   @@unique([tenantId, id])
   @@index([tenantId, facilityId])
@@ -325,6 +334,7 @@ model Framework {
   elements    Element[]
   imports     FrameworkImport[]
   facilities  FacilityFramework[]
+  assessments Assessment[]
 
   @@unique([code, edition])
   @@map("framework")
@@ -344,7 +354,8 @@ model ScoreLevel {
   generatesFinding    Boolean @map("generates_finding")
   sort                Int
 
-  framework Framework @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  framework Framework      @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  scores    ElementScore[]
 
   @@unique([frameworkId, code])
   @@map("score_level")
@@ -409,6 +420,9 @@ model Element {
   framework     Framework              @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
   standard      Standard               @relation(fields: [frameworkId, standardId], references: [frameworkId, id], onDelete: Cascade)
   applicability ElementApplicability[]
+  scores        ElementScore[]
+  statuses      ElementStatus[]
+  findings      Finding[]
 
   @@unique([frameworkId, code])
   @@index([standardId])
@@ -531,4 +545,171 @@ model SurveyCycle {
 
   @@unique([tenantId, facilityId])
   @@map("survey_cycle")
+}
+
+// ---------------------------------------------------------------------------
+// Self-assessment (M7). Tenant-owned: tenant_id, composite foreign keys and RLS (migration
+// SQL). Once an assessment is submitted, a trigger refuses any change to it, its scores or
+// its evidence: a submitted assessment is a record a surveyor may ask to see.
+// ---------------------------------------------------------------------------
+
+enum AssessmentKind {
+  self
+  tracer
+  mock_survey
+}
+
+enum ScoreSource {
+  internal
+  consultant
+}
+
+enum AssessmentStatus {
+  in_progress
+  submitted
+}
+
+model Assessment {
+  id           String           @id @default(uuid(7)) @db.Uuid
+  tenantId     String           @map("tenant_id") @db.Uuid
+  facilityId   String           @map("facility_id") @db.Uuid
+  frameworkId  String           @map("framework_id") @db.Uuid
+  // Null for a whole-facility assessment.
+  departmentId String?          @map("department_id") @db.Uuid
+  kind         AssessmentKind   @default(self)
+  source       ScoreSource      @default(internal)
+  status       AssessmentStatus @default(in_progress)
+  startedBy    String?          @map("started_by") @db.Uuid
+  startedAt    DateTime         @default(now()) @map("started_at") @db.Timestamptz(6)
+  submittedBy  String?          @map("submitted_by") @db.Uuid
+  submittedAt  DateTime?        @map("submitted_at") @db.Timestamptz(6)
+
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facility   Facility       @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  department Department?    @relation(fields: [tenantId, departmentId], references: [tenantId, id], onDelete: Restrict)
+  framework  Framework      @relation(fields: [frameworkId], references: [id], onDelete: Restrict)
+  scores     ElementScore[]
+  findings   Finding[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, facilityId, startedAt])
+  @@map("assessment")
+}
+
+model ElementScore {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  assessmentId String   @map("assessment_id") @db.Uuid
+  elementId    String   @map("element_id") @db.Uuid
+  scoreLevelId String   @map("score_level_id") @db.Uuid
+  comment      String?
+  scoredBy     String?  @map("scored_by") @db.Uuid
+  // Server time, set on every save: expiry runs from here and cannot be backdated.
+  scoredAt     DateTime @map("scored_at") @db.Timestamptz(6)
+
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assessment Assessment      @relation(fields: [tenantId, assessmentId], references: [tenantId, id], onDelete: Cascade)
+  element    Element         @relation(fields: [elementId], references: [id], onDelete: Restrict)
+  level      ScoreLevel      @relation(fields: [scoreLevelId], references: [id], onDelete: Restrict)
+  evidence   ScoreEvidence[]
+  finding    Finding?
+  statuses   ElementStatus[]
+
+  @@unique([assessmentId, elementId])
+  @@unique([tenantId, id])
+  @@index([tenantId, assessmentId])
+  @@map("element_score")
+}
+
+enum EvidenceKind {
+  document
+  observation
+  interview
+  record_review
+  kpi
+}
+
+// What backs a score. Until the document library (M8) a "document" is a link; the other
+// kinds are notes of what was seen, heard or counted. Never patient-identifiable.
+model ScoreEvidence {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
+  elementScoreId String       @map("element_score_id") @db.Uuid
+  kind           EvidenceKind
+  note           String?
+  url            String?
+  createdBy      String?      @map("created_by") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  elementScore ElementScore @relation(fields: [tenantId, elementScoreId], references: [tenantId, id], onDelete: Cascade)
+
+  @@index([tenantId, elementScoreId])
+  @@map("score_evidence")
+}
+
+// The current verified state of each element, one series per source (decision 7).
+model ElementStatus {
+  id             String      @id @default(uuid(7)) @db.Uuid
+  tenantId       String      @map("tenant_id") @db.Uuid
+  facilityId     String      @map("facility_id") @db.Uuid
+  elementId      String      @map("element_id") @db.Uuid
+  source         ScoreSource
+  elementScoreId String      @map("element_score_id") @db.Uuid
+  levelCode      String      @map("level_code")
+  verifiedAt     DateTime    @map("verified_at") @db.Timestamptz(6)
+  expiresAt      DateTime?   @map("expires_at") @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facility     Facility     @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  element      Element      @relation(fields: [elementId], references: [id], onDelete: Restrict)
+  elementScore ElementScore @relation(fields: [tenantId, elementScoreId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([facilityId, elementId, source])
+  @@index([tenantId, facilityId])
+  @@map("element_status")
+}
+
+enum FindingSeverity {
+  esr
+  high
+  medium
+  low
+}
+
+enum FindingStatus {
+  open
+  in_progress
+  closed
+  verified
+}
+
+// A gap raised automatically from a submitted score whose level generates findings (rule 6).
+// CAPA items hang off it from M9.
+model Finding {
+  id             String          @id @default(uuid(7)) @db.Uuid
+  tenantId       String          @map("tenant_id") @db.Uuid
+  facilityId     String          @map("facility_id") @db.Uuid
+  assessmentId   String          @map("assessment_id") @db.Uuid
+  elementScoreId String          @map("element_score_id") @db.Uuid
+  elementId      String          @map("element_id") @db.Uuid
+  departmentId   String?         @map("department_id") @db.Uuid
+  levelCode      String          @map("level_code")
+  severity       FindingSeverity
+  status         FindingStatus   @default(open)
+  // The scorer's comment at the time, in the language it was written in.
+  statement      String?
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facility     Facility     @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  assessment   Assessment   @relation(fields: [tenantId, assessmentId], references: [tenantId, id], onDelete: Cascade)
+  elementScore ElementScore @relation(fields: [tenantId, elementScoreId], references: [tenantId, id], onDelete: Cascade)
+  element      Element      @relation(fields: [elementId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, elementScoreId])
+  @@index([tenantId, facilityId, status])
+  @@map("finding")
 }
