@@ -251,3 +251,21 @@ export function findEvidence(tx: Tx, tenantId: string, id: string) {
 export function deleteEvidence(tx: Tx, tenantId: string, id: string) {
   return tx.capaEvidence.deleteMany({ where: { tenantId, id } });
 }
+
+/** Open actions past their due day, for the escalation job. */
+export function listOverdueItems(tx: Tx, tenantId: string, today: Date) {
+  return tx.capaItem.findMany({
+    where: { tenantId, status: { in: ["open", "in_progress"] }, dueOn: { lt: today } },
+    orderBy: [{ dueOn: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      facilityId: true,
+      findingId: true,
+      action: true,
+      ownerUserId: true,
+      dueOn: true,
+      status: true,
+      finding: { select: { element: { select: { code: true } } } },
+    },
+  });
+}

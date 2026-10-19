@@ -6,7 +6,9 @@ import nextTs from "eslint-config-next/typescript";
 // - code inside a module uses relative imports for its own files;
 // - other modules are reached only through `@/modules/<name>/service`;
 // - `domain/` is pure: no Prisma, no Next.js, no lib I/O.
-// - routes (src/app) may also render a module's `ui/` components.
+// - routes (src/app) may also render a module's `ui/` components;
+// - the worker (src/worker) registers each module's `jobs.ts` handlers, and integration
+//   tests call them with a fake clock.
 const moduleInternals = [
   "@/modules/*/repo",
   "@/modules/*/repo.*",
@@ -48,6 +50,22 @@ const eslintConfig = defineConfig([
     files: ["src/app/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-imports": ["error", { patterns: [routeModuleInternals] }],
+    },
+  },
+  {
+    files: ["src/worker/**/*.ts", "tests/integration/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: moduleInternals.filter((pattern) => pattern !== "@/modules/*/jobs"),
+              message: "Reach modules through their jobs.ts or service.",
+            },
+          ],
+        },
+      ],
     },
   },
   {

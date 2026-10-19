@@ -5,6 +5,7 @@ import { toRiyadhDay } from "@/lib/dates";
 import { DomainError, ForbiddenError } from "@/lib/errors";
 import { recordAudit } from "@/modules/audit/service";
 import { findCitableVersion } from "@/modules/documents/service";
+import { notify } from "@/modules/notifications/service";
 import {
   allowed,
   getFacility,
@@ -342,6 +343,24 @@ export async function createCapaItem(
       },
     });
     await syncFindingStatus(tx, ctx, { id: finding.id, status: status ?? finding.status }, now);
+    // Someone handed an action is told; assigning one to yourself needs no notice.
+    if (data.ownerUserId !== ctx.userId) {
+      await notify(tx, ctx, [
+        {
+          facilityId: finding.facilityId,
+          userId: data.ownerUserId,
+          type: "capaAssigned",
+          payload: {
+            findingId: finding.id,
+            itemId: id,
+            elementCode: finding.element.code,
+            action: data.action,
+            dueOn: data.dueOn,
+          },
+          dedupeKey: `capa:${id}:assigned`,
+        },
+      ]);
+    }
     return { id };
   });
 }

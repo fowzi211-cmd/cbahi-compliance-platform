@@ -4,6 +4,7 @@ import { AppShellFallback } from "@/components/shell/app-shell-fallback";
 import type { NavKey } from "@/components/shell/nav-items";
 import type { Locale } from "@/i18n/routing";
 import { requireAppContext } from "@/lib/session";
+import { countUnread } from "@/modules/notifications/service";
 import { allowed } from "@/modules/tenancy/service";
 
 // Everything in this group needs a signed-in member. The check reads the request, so it
@@ -30,6 +31,7 @@ async function AppFrame({
   })
     ? []
     : ["people"];
+  const unreadNotifications = await countUnread(ctx.access);
 
   return (
     <AppShell
@@ -37,6 +39,7 @@ async function AppFrame({
       facilities={ctx.facilities}
       activeFacilityId={ctx.facilityId}
       hiddenNav={hiddenNav}
+      unreadNotifications={unreadNotifications}
     >
       {children}
     </AppShell>

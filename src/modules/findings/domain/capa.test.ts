@@ -6,6 +6,7 @@ import {
   daysFrom,
   dueDateProblem,
   escalationLevel,
+  escalationNotices,
   escalationTargets,
   findingStatusFor,
   isOverdue,
@@ -165,5 +166,25 @@ describe("capaEvidenceProblem", () => {
     [{ kind: "link", documentVersionId: null, url: null }, "invalidUrl"],
   ] as const)("%o → %s", (input, expected) => {
     expect(capaEvidenceProblem(input)).toBe(expected);
+  });
+});
+
+describe("escalationNotices", () => {
+  const item = { id: "c1", status: "open" as CapaStatus, dueOn: "2026-10-01" };
+  it.each([
+    ["on time", "2026-10-01", []],
+    ["1 day overdue", "2026-10-02", ["itemOwner"]],
+    ["7 days overdue", "2026-10-08", ["itemOwner", "qualityManager"]],
+    ["14 days overdue", "2026-10-15", ["itemOwner", "qualityManager", "facilityOwner"]],
+  ] as const)("%s", (_name, today, targets) => {
+    expect(escalationNotices(item, today).map((n) => n.notify)).toEqual(targets);
+  });
+
+  it("keys each level to the item and its due date", () => {
+    expect(escalationNotices(item, "2026-10-08").map((n) => n.dedupeKey)).toEqual([
+      "capa:c1:2026-10-01:level1",
+      "capa:c1:2026-10-01:level2",
+    ]);
+    expect(escalationNotices({ ...item, status: "done" }, "2026-10-30")).toEqual([]);
   });
 });

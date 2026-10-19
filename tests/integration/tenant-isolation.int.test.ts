@@ -38,6 +38,14 @@ import {
   transitionCapaItem,
 } from "@/modules/findings/service";
 import {
+  countUnread,
+  getPreferences,
+  listNotifications,
+  notify,
+  openNotification,
+  savePreferences,
+} from "@/modules/notifications/service";
+import {
   activateEdition,
   browseLibrary,
   commitImport,
@@ -99,6 +107,7 @@ let bOpenAssessmentId: string;
 let bDocument: { documentId: string; versionId: string };
 let bPendingVersionId: string;
 let bCapa: { findingId: string; itemId: string; evidenceId: string };
+let bNoticeId: string;
 
 beforeAll(async () => {
   [a, b] = await Promise.all([makeTenant("A"), makeTenant("B")]);
@@ -164,6 +173,29 @@ beforeAll(async () => {
   // A corrective action with evidence in each tenant.
   await demoCapaItem(a.ctx, a.facility.id);
   bCapa = await demoCapaItem(b.ctx, b.facility.id);
+
+  // A notice and email settings for each owner.
+  for (const t of [a, b]) {
+    await savePreferences(t.ctx, { emailImmediate: false, emailDigest: true, locale: "en" });
+    await withTenant(t.ctx, (tx) =>
+      notify(tx, t.ctx, [
+        {
+          facilityId: t.facility.id,
+          userId: t.ctx.userId,
+          type: "documentExpired",
+          payload: {
+            documentId: randomUUID(),
+            version: 1,
+            titleAr: null,
+            titleEn: "Isolation demo",
+            expiresOn: "2026-01-01",
+          },
+          dedupeKey: "isolation-demo",
+        },
+      ]),
+    );
+  }
+  bNoticeId = (await listNotifications(b.ctx, "en"))[0]!.id;
 });
 
 afterAll(disconnectDb);
@@ -390,6 +422,14 @@ describe("service layer with a fooled permission check", () => {
     expect(bView.capaItems.map((i) => [i.status, i.evidence.length])).toEqual([["open", 1]]);
   });
 
+  it("cannot read or open another tenant's notifications", async () => {
+    expect(await openNotification(aForged, bNoticeId)).toBeNull();
+    expect((await listNotifications(aForged, "en")).map((n) => n.id)).not.toContain(bNoticeId);
+    expect(await countUnread(b.ctx)).toBe(1);
+    await savePreferences(aForged, { emailImmediate: true, emailDigest: false });
+    expect(await getPreferences(b.ctx)).toMatchObject({ emailImmediate: false, locale: "en" });
+  });
+
   it("sees only its own subscription and audit trail", async () => {
     expect((await getSubscription(a.ctx))?.tenantId).toBe(a.tenant.id);
     const events = await listAuditEvents(a.ctx);
@@ -421,6 +461,8 @@ describe("database layer (RLS) on its own", () => {
     document_element: "tenant_id",
     capa_item: "tenant_id",
     capa_evidence: "tenant_id",
+    notification: "tenant_id",
+    notification_preference: "tenant_id",
   };
 
   it.each(Object.entries(tenantColumn))(

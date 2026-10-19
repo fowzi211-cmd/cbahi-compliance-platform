@@ -19,7 +19,8 @@
     "settings": "Settings",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
-    "people": "People & access"
+    "people": "People & access",
+    "notifications": "Notifications"
   },
   "shell": {
     "switchLocale": "العربية",
@@ -858,6 +859,65 @@
       "documentRequired": "Choose a document.",
       "documentNotCitable": "That document is not an approved version in force.",
       "invalidUrl": "Enter a full link starting with https://."
+    }
+  },
+  "notifications": {
+    "types": {
+      "capaAssigned": {
+        "title": "New corrective action for {code}",
+        "body": "You are responsible for: {action}. Due {due}."
+      },
+      "capaOverdue": {
+        "title": "Overdue corrective action for {code}",
+        "body": "{level, select, 1 {This action is past its due date ({due}): {action}} 2 {This action is 7 or more days overdue (due {due}) and has been escalated to the quality manager: {action}} other {This action is 14 or more days overdue (due {due}) and has been escalated to the facility owner: {action}}}"
+      },
+      "documentReviewDue": {
+        "title": "Review due: {document}",
+        "body": "Version {version} of “{document}” was due for review on {date}. It stays in force, but review it soon."
+      },
+      "documentExpiring": {
+        "title": "Expiring soon: {document}",
+        "body": "Version {version} of “{document}” expires on {date}. After that it can no longer be cited as evidence."
+      },
+      "documentExpired": {
+        "title": "Expired: {document}",
+        "body": "Version {version} of “{document}” expired on {date} and can no longer be cited as evidence. Upload and approve a new version."
+      }
+    },
+    "email": {
+      "greeting": "Hello {name},",
+      "footer": "You can change which emails you receive on the Notifications page.",
+      "open": "Open in Mustamir",
+      "openInbox": "Open your notifications",
+      "digestSubject": "{count, plural, one {Your daily summary: # update} other {Your daily summary: # updates}}",
+      "digestIntro": "{count, plural, one {Here is # update from the last day:} other {Here are # updates from the last day:}}"
+    },
+    "inbox": {
+      "title": "Notifications",
+      "intro": "Reminders and escalations for you. Urgent ones are also emailed at once; the rest arrive in a daily summary.",
+      "empty": "No notifications yet.",
+      "markAllRead": "Mark all as read",
+      "markRead": "Mark as read",
+      "unread": "Unread",
+      "open": "Open"
+    },
+    "bell": {
+      "label": "{count, plural, =0 {No unread notifications} one {# unread notification} other {# unread notifications}}"
+    },
+    "prefs": {
+      "title": "Email settings",
+      "emailImmediate": "Email me urgent notices at once (assignments, overdue actions, expired documents)",
+      "emailDigest": "Email me a daily summary of everything else",
+      "locale": "Email language",
+      "localeDefault": "The language I signed up in",
+      "ar": "العربية",
+      "en": "English",
+      "save": "Save settings",
+      "saved": "Settings saved."
+    },
+    "errors": {
+      "invalid": "Check the form and try again.",
+      "forbidden": "You do not have permission to do that."
     }
   }
 }

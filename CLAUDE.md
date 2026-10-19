@@ -31,7 +31,9 @@ pnpm db:migrate             # prisma migrate dev (new migration from schema chan
 pnpm test:int               # vitest integration against <db>_test (needs docker postgres)
 pnpm db:seed                # fictional DEMO-AMB framework (idempotent)
 pnpm platform:admin <email> # grant the platform-admin flag (add --revoke to remove)
-# added by later milestones: pnpm worker (M10), demo tenant seed (M17)
+pnpm worker                 # pg-boss worker: reminders 06:00, digest 07:00, email every minute
+pnpm jobs:run <job> [--now ISO]  # run reminders|deliver|digest once (fake clock for tests)
+# added by later milestones: demo tenant seed (M17)
 pnpm check                  # lint + typecheck + format + i18n parity + unit + int
 ```
 
