@@ -18,6 +18,13 @@ const crossModuleInternals = {
   message: "Import another module only through its service: @/modules/<name>/service.",
 };
 
+// RTL: physical direction utilities break the mirrored Arabic layout. Use logical ones
+// (ms-/me-/ps-/pe-/start-/end-/text-start/border-s/rounded-s...) instead.
+const physicalDirectionClass =
+  "/(^|[\\s:])-?(m[lr]|p[lr]|left|right|border-[lr]|rounded-[lr]|rounded-[tb][lr]|scroll-[mp][lr])-|(^|[\\s:])(text|float|clear)-(left|right)(\\s|$)/";
+const rtlMessage =
+  "Use logical Tailwind utilities (ms-, me-, ps-, pe-, start-, end-, text-start, border-s, rounded-s) so layouts mirror in Arabic.";
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -46,6 +53,18 @@ const eslintConfig = defineConfig([
             },
           ],
         },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        { selector: "TSEnumDeclaration", message: "Use `as const` unions instead of enums." },
+        { selector: `Literal[value=${physicalDirectionClass}]`, message: rtlMessage },
+        { selector: `TemplateElement[value.raw=${physicalDirectionClass}]`, message: rtlMessage },
       ],
     },
   },

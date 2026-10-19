@@ -25,8 +25,9 @@ pnpm dev                    # web on :3000
 pnpm test                   # vitest unit
 pnpm test:e2e               # playwright (desktop + mobile viewports)
 pnpm lint / typecheck / format
+pnpm i18n:check             # ar/en message keys and placeholders match
 # added by later milestones: pnpm worker (M10), pnpm db:migrate / db:seed (M2), pnpm test:int (M2)
-pnpm check                  # lint + typecheck + format + unit (+ i18n parity from M1, int from M2)
+pnpm check                  # lint + typecheck + format + i18n parity + unit (+ int from M2)
 ```
 
 ## Folder structure
@@ -73,6 +74,8 @@ Modules call other modules **only through `service.ts`**. `domain/` imports noth
 - Wrap codes, emails and numbers embedded in Arabic text in `<bdi>`.
 - No string concatenation for sentences. Use ICU messages with placeholders and plurals (Arabic has 6 plural forms).
 - Test new screens in both locales. E2E specs run in `ar` by default.
+- Format dates only through `src/lib/dates.ts` (Riyadh time, Gregorian, optional Umm al-Qura Hijri, Latin digits).
+- A drawer or dialog inside the sticky header must be portalled to `<body>` (the header's backdrop blur clips `fixed` children).
 
 ## Testing
 
