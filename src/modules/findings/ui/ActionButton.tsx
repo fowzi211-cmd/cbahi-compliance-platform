@@ -1,0 +1,35 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+import { useActionState } from "react";
+import { Button } from "@/components/ui/button";
+import { idleState, type FormState } from "@/lib/form-state";
+
+/** A one-button form (remove evidence) that shows its error next to the button. */
+export function ActionButton({
+  fields,
+  label,
+  action,
+}: {
+  fields: Record<string, string>;
+  label: string;
+  action: (state: FormState, form: FormData) => Promise<FormState>;
+}) {
+  const t = useTranslations("findings");
+  const [state, formAction, pending] = useActionState(action, idleState);
+  return (
+    <form action={formAction} className="flex flex-col items-start gap-1">
+      {Object.entries(fields).map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={value} />
+      ))}
+      <Button type="submit" size="sm" variant="ghost" disabled={pending}>
+        {label}
+      </Button>
+      {state.status === "error" ? (
+        <p role="alert" className="text-danger text-sm">
+          {t(`errors.${state.error}` as "errors.invalid")}
+        </p>
+      ) : null}
+    </form>
+  );
+}

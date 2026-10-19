@@ -3,7 +3,12 @@ import { withTenant } from "@/lib/db";
 import { DomainError, ForbiddenError } from "@/lib/errors";
 import { recordAudit } from "@/modules/audit/service";
 import { findCitableVersion } from "@/modules/documents/service";
-import { listFindings, raiseFindings } from "@/modules/findings/service";
+import {
+  countOverdueCapa,
+  listFindings,
+  raiseFindings,
+  verifyFindings,
+} from "@/modules/findings/service";
 import {
   getScoringContent,
   listFacilityFrameworks,
@@ -519,6 +524,25 @@ export async function submitAssessment(ctx: AccessContext, assessmentId: string,
       }),
     );
 
+    const verified = await verifyFindings(
+      tx,
+      ctx,
+      {
+        facilityId: assessment.facilityId,
+        departmentId: assessment.departmentId,
+        scores: scores.map((s) => {
+          const level = findLevel(content.scale, s.level.code);
+          return {
+            elementId: s.elementId,
+            scoreId: s.id,
+            normalized: level ? (normalizedValue(level, content.scale) ?? 0) : 0,
+            scoredAt: s.scoredAt,
+          };
+        }),
+      },
+      now,
+    );
+
     await repo.markSubmitted(tx, ctx.tenantId, assessment.id, ctx.userId, now);
     await recordAudit(tx, ctx, {
       action: "submit",
@@ -530,9 +554,10 @@ export async function submitAssessment(ctx: AccessContext, assessmentId: string,
         scores: scores.length,
         statusesUpdated: updates.length,
         findings: findingIds.length,
+        findingsVerified: verified,
       },
     });
-    return { findings: findingIds.length, statusesUpdated: updates.length };
+    return { findings: findingIds.length, statusesUpdated: updates.length, verified };
   });
 }
 
@@ -551,8 +576,8 @@ function toStatusRecord(row: Awaited<ReturnType<typeof repo.listStatuses>>[numbe
 
 /**
  * The facility's readiness against each edition it uses, from the internal series as of
- * `now`: current levels, roll-up, then the ESR and threshold rules. Overdue CAPA items count
- * from M9; until then there are none.
+ * `now`: current levels, roll-up, then the ESR and threshold rules, with the facility's
+ * overdue CAPA items.
  */
 export async function getReadiness(ctx: AccessContext, facilityId: string, now = new Date()) {
   if (!allowed(ctx, "dashboard.view", { facilityId })) return [];
@@ -561,6 +586,7 @@ export async function getReadiness(ctx: AccessContext, facilityId: string, now =
   const statuses = (
     await withTenant(ctx, (tx) => repo.listStatuses(tx, ctx.tenantId, facilityId))
   ).map(toStatusRecord);
+  const overdueCapa = await countOverdueCapa(ctx, facilityId, now);
 
   const results = [];
   for (const framework of frameworks) {
@@ -576,7 +602,7 @@ export async function getReadiness(ctx: AccessContext, facilityId: string, now =
       readiness: defaultReadinessSettings,
       statuses: own,
       source: "internal",
-      overdueCapa: 0,
+      overdueCapa,
       now,
     });
     results.push({
@@ -588,6 +614,7 @@ export async function getReadiness(ctx: AccessContext, facilityId: string, now =
       scored: verdict.rollup.facility.scored,
       esrNotMet: verdict.rollup.facility.esrNotMet,
       esrUnverified: verdict.rollup.facility.esrUnverified,
+      overdueCapa,
       expired: own.filter((s) => s.source === "internal" && elementState(s, now) === "expired")
         .length,
     });

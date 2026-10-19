@@ -2,7 +2,7 @@ import { Download, ExternalLink } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardTitle } from "@/components/ui/card";
-import { getPathname } from "@/i18n/navigation";
+import { Link, getPathname } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { formatDateTime } from "@/lib/dates";
 import type { FormState } from "@/lib/form-state";
@@ -266,9 +266,11 @@ export async function AssessmentFindings({
               className="border-border flex flex-col gap-1 rounded-md border p-3 text-sm"
             >
               <span className="flex flex-wrap items-baseline gap-2">
-                <bdi dir="ltr" className="font-mono font-medium">
-                  {finding.element.code}
-                </bdi>
+                <Link href={`/findings/${finding.id}`} className="text-primary hover:underline">
+                  <bdi dir="ltr" className="font-mono font-medium">
+                    {finding.element.code}
+                  </bdi>
+                </Link>
                 <Badge variant={severityVariant[finding.severity]} data-testid="finding-severity">
                   {t(`severity.${finding.severity}`)}
                 </Badge>

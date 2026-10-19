@@ -48,6 +48,8 @@ model Tenant {
   documentVersions     DocumentVersion[]
   documentApprovals    DocumentApproval[]
   documentElements     DocumentElement[]
+  capaItems            CapaItem[]
+  capaEvidence         CapaEvidence[]
 
   @@map("tenant")
 }
@@ -97,6 +99,7 @@ model Facility {
   statuses      ElementStatus[]
   findings      Finding[]
   documents     Document[]
+  capaItems     CapaItem[]
 
   @@unique([tenantId, id])
   @@index([tenantId])
@@ -619,7 +622,8 @@ model ElementScore {
   element    Element         @relation(fields: [elementId], references: [id], onDelete: Restrict)
   level      ScoreLevel      @relation(fields: [scoreLevelId], references: [id], onDelete: Restrict)
   evidence   ScoreEvidence[]
-  finding    Finding?
+  finding    Finding?        @relation("FindingSource")
+  verified   Finding[]       @relation("FindingVerification")
   statuses   ElementStatus[]
 
   @@unique([assessmentId, elementId])
@@ -698,28 +702,36 @@ enum FindingStatus {
 // A gap raised automatically from a submitted score whose level generates findings (rule 6).
 // CAPA items hang off it from M9.
 model Finding {
-  id             String          @id @default(uuid(7)) @db.Uuid
-  tenantId       String          @map("tenant_id") @db.Uuid
-  facilityId     String          @map("facility_id") @db.Uuid
-  assessmentId   String          @map("assessment_id") @db.Uuid
-  elementScoreId String          @map("element_score_id") @db.Uuid
-  elementId      String          @map("element_id") @db.Uuid
-  departmentId   String?         @map("department_id") @db.Uuid
-  levelCode      String          @map("level_code")
-  severity       FindingSeverity
-  status         FindingStatus   @default(open)
+  id              String          @id @default(uuid(7)) @db.Uuid
+  tenantId        String          @map("tenant_id") @db.Uuid
+  facilityId      String          @map("facility_id") @db.Uuid
+  assessmentId    String          @map("assessment_id") @db.Uuid
+  elementScoreId  String          @map("element_score_id") @db.Uuid
+  elementId       String          @map("element_id") @db.Uuid
+  departmentId    String?         @map("department_id") @db.Uuid
+  levelCode       String          @map("level_code")
+  severity        FindingSeverity
+  status          FindingStatus   @default(open)
   // The scorer's comment at the time, in the language it was written in.
-  statement      String?
-  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  statement       String?
+  // When every corrective action was done (M9), and the later full-compliance score that
+  // proved the fix held (rule 7).
+  closedAt        DateTime?       @map("closed_at") @db.Timestamptz(6)
+  verifiedAt      DateTime?       @map("verified_at") @db.Timestamptz(6)
+  verifiedScoreId String?         @map("verified_score_id") @db.Uuid
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  facility     Facility     @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
-  assessment   Assessment   @relation(fields: [tenantId, assessmentId], references: [tenantId, id], onDelete: Cascade)
-  elementScore ElementScore @relation(fields: [tenantId, elementScoreId], references: [tenantId, id], onDelete: Cascade)
-  element      Element      @relation(fields: [elementId], references: [id], onDelete: Restrict)
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facility      Facility      @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  assessment    Assessment    @relation(fields: [tenantId, assessmentId], references: [tenantId, id], onDelete: Cascade)
+  elementScore  ElementScore  @relation("FindingSource", fields: [tenantId, elementScoreId], references: [tenantId, id], onDelete: Cascade)
+  verifiedScore ElementScore? @relation("FindingVerification", fields: [tenantId, verifiedScoreId], references: [tenantId, id], onDelete: Restrict)
+  element       Element       @relation(fields: [elementId], references: [id], onDelete: Restrict)
+  capaItems     CapaItem[]
 
   @@unique([tenantId, elementScoreId])
+  @@unique([tenantId, id])
   @@index([tenantId, facilityId, status])
   @@map("finding")
 }
@@ -799,10 +811,11 @@ model DocumentVersion {
   uploadedBy  String?               @map("uploaded_by") @db.Uuid
   uploadedAt  DateTime              @default(now()) @map("uploaded_at") @db.Timestamptz(6)
 
-  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  document  Document           @relation(fields: [tenantId, documentId], references: [tenantId, id], onDelete: Cascade)
-  approvals DocumentApproval[]
-  evidence  ScoreEvidence[]
+  tenant       Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document     Document           @relation(fields: [tenantId, documentId], references: [tenantId, id], onDelete: Cascade)
+  approvals    DocumentApproval[]
+  evidence     ScoreEvidence[]
+  capaEvidence CapaEvidence[]
 
   @@unique([documentId, version])
   @@unique([tenantId, id])
@@ -842,4 +855,72 @@ model DocumentElement {
   @@unique([documentId, elementId])
   @@index([tenantId, elementId])
   @@map("document_element")
+}
+
+// ---------------------------------------------------------------------------
+// Corrective and preventive actions (M9). Tenant-owned: tenant_id, composite foreign keys
+// and RLS. "Overdue" is not stored: it follows from due_on and the day (rule 7).
+// ---------------------------------------------------------------------------
+
+enum CapaStatus {
+  open
+  in_progress
+  done
+  cancelled
+}
+
+enum CapaEvidenceKind {
+  document
+  link
+}
+
+model CapaItem {
+  id           String     @id @default(uuid(7)) @db.Uuid
+  tenantId     String     @map("tenant_id") @db.Uuid
+  facilityId   String     @map("facility_id") @db.Uuid
+  findingId    String     @map("finding_id") @db.Uuid
+  // Copied from the finding so department scoping needs no join.
+  departmentId String?    @map("department_id") @db.Uuid
+  // What will be done, in the language it was written in.
+  action       String
+  ownerUserId  String     @map("owner_user_id") @db.Uuid
+  dueOn        DateTime   @map("due_on") @db.Date
+  status       CapaStatus @default(open)
+  closureNote  String?    @map("closure_note")
+  closedAt     DateTime?  @map("closed_at") @db.Timestamptz(6)
+  closedBy     String?    @map("closed_by") @db.Uuid
+  createdBy    String?    @map("created_by") @db.Uuid
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facility Facility       @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  finding  Finding        @relation(fields: [tenantId, findingId], references: [tenantId, id], onDelete: Cascade)
+  evidence CapaEvidence[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, findingId])
+  @@index([tenantId, facilityId, status, dueOn])
+  @@index([tenantId, ownerUserId])
+  @@map("capa_item")
+}
+
+// Proof that an action was done: an approved document version or a link.
+model CapaEvidence {
+  id                String           @id @default(uuid(7)) @db.Uuid
+  tenantId          String           @map("tenant_id") @db.Uuid
+  capaItemId        String           @map("capa_item_id") @db.Uuid
+  kind              CapaEvidenceKind
+  documentVersionId String?          @map("document_version_id") @db.Uuid
+  url               String?
+  description       String?
+  addedBy           String?          @map("added_by") @db.Uuid
+  addedAt           DateTime         @default(now()) @map("added_at") @db.Timestamptz(6)
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  capaItem        CapaItem         @relation(fields: [tenantId, capaItemId], references: [tenantId, id], onDelete: Cascade)
+  documentVersion DocumentVersion? @relation(fields: [tenantId, documentVersionId], references: [tenantId, id], onDelete: Restrict)
+
+  @@index([tenantId, capaItemId])
+  @@map("capa_evidence")
 }

@@ -281,7 +281,11 @@ describe("scoring and submitting a department assessment", () => {
       levelCode: "NM",
       comment: "No checklist in the unit.",
     });
-    expect(await submitAssessment(nursingHead, id)).toEqual({ findings: 1, statusesUpdated: 2 });
+    expect(await submitAssessment(nursingHead, id)).toEqual({
+      findings: 1,
+      statusesUpdated: 2,
+      verified: 0,
+    });
 
     const sheet = (await getAssessmentSheet(nursingHead, id))!;
     expect(sheet.assessment.status).toBe("submitted");
@@ -355,7 +359,7 @@ describe("findings and element status across assessments", () => {
     await submitAssessment(qm, late, t2);
     const result = await submitAssessment(qm, early, at(3));
     // The early draft's scores are older than the current status: nothing rolls back.
-    expect(result).toEqual({ findings: 4, statusesUpdated: 0 });
+    expect(result).toEqual({ findings: 4, statusesUpdated: 0, verified: 0 });
 
     const findings = await listFindings(qm, tenant.facility.id, { assessmentId: early });
     expect(findings.map((f) => [f.element.code, f.severity]).sort()).toEqual([
