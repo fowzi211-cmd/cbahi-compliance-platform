@@ -1,5 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { withSystem } from "@/lib/db";
+import {
+  activateEdition,
+  commitImport,
+  previewImport,
+  setLicenseNote,
+} from "@/modules/standards/service";
 import { createTenant, loadAccessContext, type AccessContext } from "@/modules/tenancy/service";
 
 export async function makeTenant(label: string) {
@@ -45,7 +51,12 @@ export const uniqueFrameworkCode = () => `DEMO-T${randomUUID().slice(0, 8).toUpp
 export function demoEditionJson(
   code: string,
   edition: string,
-  options: { esr?: string[]; elements?: string[] } = {},
+  options: {
+    esr?: string[];
+    elements?: string[];
+    // Facility types per element number, e.g. { "3": "hospital" }.
+    facilityTypes?: Record<string, string>;
+  } = {},
 ) {
   const elements = options.elements ?? ["1", "2", "3"];
   const esr = new Set(options.esr ?? ["1"]);
@@ -74,6 +85,28 @@ export function demoEditionJson(
       title_en: `Demo element ${n}`,
       is_esr: esr.has(n),
       department_types: n === "2" ? "nursing" : "",
+      facility_types: options.facilityTypes?.[n] ?? "",
     })),
   });
+}
+
+/** Imports, licenses and activates a fictional edition, as the platform admin would. */
+export async function publishDemoEdition(
+  options: Parameters<typeof demoEditionJson>[2] & { program?: string } = {},
+) {
+  const adminUser = await createUser(uniqueEmail("library-admin"));
+  const admin = { userId: adminUser.id, isPlatformAdmin: true };
+  const code = uniqueFrameworkCode();
+  const json = JSON.parse(demoEditionJson(code, "1", options)) as { framework: object };
+  if (options.program) Object.assign(json.framework, { program: options.program });
+  const preview = await previewImport(admin, {
+    fileName: "e.json",
+    bytes: new TextEncoder().encode(JSON.stringify(json)),
+    framework: {},
+  });
+  if (!preview.ok) throw new Error(`fixture import failed: ${JSON.stringify(preview.issues)}`);
+  const frameworkId = await commitImport(admin, preview.importId);
+  await setLicenseNote(admin, frameworkId, "Fictional demo content.");
+  await activateEdition(admin, frameworkId);
+  return { frameworkId, code, admin };
 }

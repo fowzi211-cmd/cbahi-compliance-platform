@@ -33,6 +33,10 @@ account a platform admin with `pnpm platform:admin you@example.com`, enrol two-s
 and open http://localhost:3000/ar/platform/standards. The file format is in
 [docs/IMPORT_FORMAT.md](docs/IMPORT_FORMAT.md).
 
+A new account goes from sign-up to the onboarding wizard (http://localhost:3000/ar/onboarding):
+facility details and type, frameworks, element applicability, departments, team invitations and
+the survey cycle. Each step can be changed later under **Settings**.
+
 Local services:
 
 | Service    | Purpose                                  | Address                                           |

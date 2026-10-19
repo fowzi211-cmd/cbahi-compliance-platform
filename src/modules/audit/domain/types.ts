@@ -10,7 +10,8 @@ export type AuditAction =
   | "revoke"
   | "accept"
   | "activate"
-  | "retire";
+  | "retire"
+  | "complete";
 
 export type AuditEventInput = {
   action: AuditAction;

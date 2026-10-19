@@ -311,3 +311,140 @@ export async function findBrowseContent(tx: Tx, frameworkId: string) {
     })) satisfies BrowseElement[],
   };
 }
+
+// --- What applies to a facility (tenant-owned, M5) -------------------------------------------
+// These tables belong to a tenant, so every query names the tenant as well as relying on RLS.
+
+export function listFacilityFrameworks(tx: Tx, tenantId: string, facilityId: string) {
+  return tx.facilityFramework.findMany({
+    where: { tenantId, facilityId },
+    orderBy: { createdAt: "asc" },
+    select: {
+      frameworkId: true,
+      createdAt: true,
+      framework: {
+        select: {
+          id: true,
+          code: true,
+          edition: true,
+          nameAr: true,
+          nameEn: true,
+          program: true,
+          status: true,
+        },
+      },
+    },
+  });
+}
+
+export function insertFacilityFrameworks(
+  tx: Tx,
+  tenantId: string,
+  facilityId: string,
+  frameworkIds: string[],
+  createdBy: string | null,
+) {
+  return tx.facilityFramework.createMany({
+    data: frameworkIds.map((frameworkId) => ({ tenantId, facilityId, frameworkId, createdBy })),
+  });
+}
+
+export function deleteFacilityFrameworks(
+  tx: Tx,
+  tenantId: string,
+  facilityId: string,
+  frameworkIds: string[],
+) {
+  return tx.facilityFramework.deleteMany({
+    where: { tenantId, facilityId, frameworkId: { in: frameworkIds } },
+  });
+}
+
+/** The elements of one edition with their place in it, for the applicability screen. */
+export async function listApplicabilityElements(tx: Tx, frameworkId: string) {
+  const [chapters, standards, elements] = await Promise.all([
+    tx.chapter.findMany({
+      where: { frameworkId },
+      orderBy: { sort: "asc" },
+      select: { id: true, code: true, titleAr: true, titleEn: true },
+    }),
+    tx.standard.findMany({
+      where: { frameworkId },
+      select: { id: true, chapterId: true },
+    }),
+    tx.element.findMany({
+      where: { frameworkId },
+      orderBy: { sort: "asc" },
+      select: {
+        id: true,
+        standardId: true,
+        code: true,
+        titleAr: true,
+        titleEn: true,
+        isEsr: true,
+        facilityTypes: true,
+      },
+    }),
+  ]);
+  return { chapters, standards, elements };
+}
+
+export function listApplicabilityOverrides(
+  tx: Tx,
+  tenantId: string,
+  facilityId: string,
+  elementIds?: string[],
+) {
+  return tx.elementApplicability.findMany({
+    where: { tenantId, facilityId, ...(elementIds ? { elementId: { in: elementIds } } : {}) },
+    select: {
+      elementId: true,
+      applicable: true,
+      justification: true,
+      decidedBy: true,
+      decidedAt: true,
+    },
+  });
+}
+
+/** An element, only if it belongs to an edition the facility is assessed against. */
+export function findFacilityElement(
+  tx: Tx,
+  tenantId: string,
+  facilityId: string,
+  elementId: string,
+) {
+  return tx.element.findFirst({
+    where: { id: elementId, framework: { facilities: { some: { tenantId, facilityId } } } },
+    select: { id: true, code: true, frameworkId: true, isEsr: true, facilityTypes: true },
+  });
+}
+
+export function upsertApplicability(
+  tx: Tx,
+  tenantId: string,
+  data: {
+    facilityId: string;
+    elementId: string;
+    applicable: boolean;
+    justification: string | null;
+    decidedBy: string | null;
+    decidedAt: Date;
+  },
+) {
+  const { facilityId, elementId, ...decision } = data;
+  return tx.elementApplicability.upsert({
+    where: { facilityId_elementId: { facilityId, elementId } },
+    create: { tenantId, facilityId, elementId, ...decision },
+    update: decision,
+  });
+}
+
+export function deleteApplicability(
+  tx: Tx,
+  tenantId: string,
+  facilityId: string,
+  elementId: string,
+) {
+  return tx.elementApplicability.deleteMany({ where: { tenantId, facilityId, elementId } });
+}

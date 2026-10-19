@@ -26,6 +26,8 @@ export async function inviteAction(_: FormState, form: FormData): Promise<FormSt
     return { status: "error", error: formErrorCode(error) };
   }
   revalidatePath("/[locale]/people", "page");
+  // The onboarding wizard's people step lists invitations too.
+  revalidatePath("/[locale]/onboarding/[step]", "page");
   return { status: "done" };
 }
 

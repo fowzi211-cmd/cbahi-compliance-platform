@@ -40,7 +40,15 @@ export function updateFacility(
   tx: Tx,
   tenantId: string,
   id: string,
-  data: { nameAr?: string; nameEn?: string; licenseNo?: string | null; city?: string | null },
+  data: {
+    nameAr?: string;
+    nameEn?: string;
+    type?: string;
+    licenseNo?: string | null;
+    city?: string | null;
+    onboardingSteps?: string[];
+    onboardedAt?: Date | null;
+  },
 ) {
   // updateMany so a row hidden by RLS is "0 rows updated", not an exception that leaks existence.
   return tx.facility.updateMany({ where: { tenantId, id, archivedAt: null }, data });
@@ -49,9 +57,26 @@ export function updateFacility(
 export function insertDepartment(
   tx: Tx,
   tenantId: string,
-  data: { facilityId: string; nameAr: string; nameEn: string },
+  data: { facilityId: string; nameAr: string; nameEn: string; typeCode?: string },
 ) {
   return tx.department.create({ data: { ...data, tenantId } });
+}
+
+export function findDepartment(tx: Tx, tenantId: string, id: string) {
+  return tx.department.findFirst({ where: { tenantId, id, archivedAt: null } });
+}
+
+/** Archives rather than deletes: memberships and, later, records keep pointing at it. */
+export function archiveDepartment(tx: Tx, tenantId: string, id: string, now: Date) {
+  return tx.department.updateMany({
+    where: { tenantId, id, archivedAt: null },
+    data: { archivedAt: now },
+  });
+}
+
+// The department-type catalogue is global (no tenant); the app role may read it.
+export function departmentTypeExists(tx: Tx, code: string) {
+  return tx.departmentType.findUnique({ where: { code }, select: { code: true } }).then(Boolean);
 }
 
 export function listDepartments(tx: Tx, tenantId: string, facilityId: string) {

@@ -46,14 +46,15 @@ src/
   app/[locale]/...            # routes (thin): parse input → call service → render
   modules/
     identity/       users, sessions, MFA, lockout (Better Auth behind it)
-    tenancy/        tenants, facilities, departments, memberships, invitations, RBAC policy
-    standards/      frameworks, chapters, standards, elements, scales, import, crosswalk (phase 2)
+    tenancy/        tenants, facilities, departments, memberships, invitations, RBAC policy, onboarding progress
+    standards/      frameworks, chapters, standards, elements, scales, import, facility frameworks and
+                    element applicability, crosswalk (phase 2)
     assessments/    assessments, element scores, scoring & roll-up engine, readiness
     tracers/        tracer templates, schedules, runs, random sampling
     findings/       findings, CAPA items, escalation
     documents/      documents, versions, approvals, review/expiry reminders, PHI guard
     committees/     committees, meetings, minutes ↔ elements
-    surveys/        survey cycles, mock surveys, PDF report
+    surveys/        survey cycle (M5), mock surveys, PDF report
     dashboards/     snapshots, trend queries, readiness overview
     notifications/  notification service + channels (in-app, email; SMS/WhatsApp later)
     subscriptions/  tiers, feature gates, consultant assignment, service requests, struggle signal
@@ -177,6 +178,15 @@ erDiagram
 
 `ElementApplicability` records facility-level N/A decisions **with a justification**. A surveyor will ask why an element is N/A, so a justification is mandatory.
 
+**As built in M5** (differences from the diagram above):
+
+- `Facility.type` has a foreign key to the `facility_type` catalogue, and `Department.department_type` an optional one to `department_type`. The tenancy module keeps the facility-type codes as a constant list for validation; it matches the catalogue rows seeded by the M4 migration.
+- `FacilityFramework`, `ElementApplicability` and `SurveyCycle` are tenant-owned (RLS policy, composite FK to the facility). The first two belong to the standards module, `SurveyCycle` to surveys. Their foreign keys to `framework` and `element` are `ON DELETE RESTRICT`, so a library edition in use cannot be deleted.
+- `ElementApplicability` stores exceptions only, in both directions: "not applicable" (a DB CHECK requires a justification of at least 10 characters) and "applicable although the framework ties it to another facility type". A decision equal to the framework's rule deletes the override (rule 11).
+- `SurveyCycle` is one current row per facility (status, last survey date, expected next date, notes). Dates are `DATE` columns, passed as `YYYY-MM-DD` strings so no time zone can shift them.
+- Onboarding progress is two columns on `facility`: `onboarding_steps` (steps saved so far) and `onboarded_at` (set once, when the last open step is saved). The wizard is owner-only (`facility.updateSettings`) and always works on the active facility from the session. Settings links back to its steps.
+- Moving a facility to a newer framework edition (and carrying its decisions across) is deferred to the milestone that first needs it; a retired edition already chosen stays selected until then.
+
 ### 3.3 Assessment, findings, CAPA
 
 ```mermaid
@@ -259,6 +269,8 @@ erDiagram
 8. **Document lifecycle.** Only `approved` versions count as evidence. Reminders go out at 30, 14 and 1 days before `review_on` or `expires_on`. An expired document stops counting as evidence and flags the linked elements.
 9. **Struggle signal.** See decision 9. It is evaluated nightly per Platform-tier facility and raises an in-app offer (a `ServiceRequest` draft) at most once per 14 days.
 10. **Feature gates.** `can(tenant, feature)` is read from a tier matrix plus `feature_overrides`. Hybrid only: consultant assignment, consultant mock surveys, gap-assessment workflow. Everyone: all software modules.
+11. **Applicability.** An element applies to a facility when its framework edition is chosen for the facility and the element's `facility_types` is empty or contains the facility's type, unless the facility recorded an override, which always wins. Ruling an element out needs a justification of at least 10 characters (a surveyor must be able to check it). ESR elements may be ruled out, but the screen counts and flags them. A decision that matches the framework's own rule clears the override. Frameworks are suggested from the facility type (`suggestedPrograms`), and the owner confirms them. (`standards/domain/applicability.ts`)
+12. **Survey cycle.** A facility that was never surveyed has no last-survey date; any other status needs one, not in the future. The next expected survey must come after the last one and is suggested three years later (29 February rolls to 28 February). (`surveys/domain/survey-cycle.ts`)
 
 ## 5. Multi-tenancy and isolation
 

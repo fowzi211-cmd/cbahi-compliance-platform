@@ -7,15 +7,24 @@ import {
   activateEdition,
   browseLibrary,
   commitImport,
+  decideApplicability,
+  getApplicability,
+  getFrameworkChoices,
+  listFacilityFrameworks,
   listLibrary,
   previewImport,
+  setFacilityFrameworks,
   setLicenseNote,
 } from "@/modules/standards/service";
+import { getSurveyCycle, saveSurveyCycle } from "@/modules/surveys/service";
 import {
   acceptInvitation,
   addMembership,
+  archiveDepartment,
+  completeOnboardingStep,
   createDepartment,
   getFacility,
+  getOnboardingProgress,
   getSubscription,
   inviteMember,
   listDepartments,
@@ -25,6 +34,7 @@ import {
   listUserMemberships,
   renameFacility,
   revokeInvitation,
+  updateFacilityProfile,
   type AccessContext,
 } from "@/modules/tenancy/service";
 import {
@@ -32,6 +42,7 @@ import {
   demoEditionJson,
   forgedContext,
   makeTenant,
+  publishDemoEdition,
   uniqueEmail,
   uniqueFrameworkCode,
 } from "./helpers";
@@ -44,6 +55,8 @@ let b: Awaited<ReturnType<typeof makeTenant>>;
 let aForged: AccessContext;
 let bDepartmentId: string;
 let bInvitationId: string;
+let sharedFrameworkId: string;
+let bElementId: string;
 
 beforeAll(async () => {
   [a, b] = await Promise.all([makeTenant("A"), makeTenant("B")]);
@@ -68,6 +81,22 @@ beforeAll(async () => {
     })
   ).invitation.id;
   aForged = forgedContext(a.ctx, b.facility.id);
+
+  // Onboarding rows in both tenants, against the same (global) edition.
+  sharedFrameworkId = (await publishDemoEdition()).frameworkId;
+  await Promise.all(
+    [a, b].map((t) => setFacilityFrameworks(t.ctx, t.facility.id, [sharedFrameworkId])),
+  );
+  const bView = (await getApplicability(b.ctx, b.facility.id, sharedFrameworkId))!;
+  bElementId = bView.view.groups[0]!.elements[0]!.id;
+  for (const t of [a, b]) {
+    await decideApplicability(t.ctx, t.facility.id, bElementId, {
+      applicable: false,
+      justification: `Not provided at facility ${t === a ? "A" : "B"}.`,
+    });
+    await saveSurveyCycle(t.ctx, t.facility.id, { status: "never_surveyed" });
+    await completeOnboardingStep(t.ctx, t.facility.id, "facility");
+  }
 });
 
 afterAll(disconnectDb);
@@ -138,6 +167,41 @@ describe("service layer with a fooled permission check", () => {
     ).rejects.toThrow();
   });
 
+  it("cannot read or change another tenant's onboarding", async () => {
+    expect(await getFrameworkChoices(aForged, b.facility.id)).toBeNull();
+    expect(await listFacilityFrameworks(aForged, b.facility.id)).toEqual([]);
+    expect(await getApplicability(aForged, b.facility.id, sharedFrameworkId)).toBeNull();
+    expect(await getSurveyCycle(aForged, b.facility.id)).toBeNull();
+    expect(await getOnboardingProgress(aForged, b.facility.id)).toBeNull();
+    expect(
+      await updateFacilityProfile(aForged, b.facility.id, {
+        nameAr: "اختراق",
+        nameEn: "Hijack",
+        type: "hospital",
+      }),
+    ).toBe(false);
+    expect(await completeOnboardingStep(aForged, b.facility.id, "people")).toBeNull();
+    expect(await archiveDepartment(aForged, bDepartmentId)).toBe(false);
+    await expect(
+      setFacilityFrameworks(aForged, b.facility.id, [sharedFrameworkId]),
+    ).rejects.toThrow();
+    await expect(
+      decideApplicability(aForged, b.facility.id, bElementId, {
+        applicable: true,
+        justification: null,
+      }),
+    ).rejects.toThrow();
+    await expect(
+      saveSurveyCycle(aForged, b.facility.id, { status: "never_surveyed" }),
+    ).rejects.toThrow();
+
+    // B's own view is untouched.
+    expect((await getFacility(b.ctx, b.facility.id))?.type).toBe("polyclinic");
+    expect((await getOnboardingProgress(b.ctx, b.facility.id))?.done).toEqual(["facility"]);
+    const bView = (await getApplicability(b.ctx, b.facility.id, sharedFrameworkId))!;
+    expect(bView.view.counts.notApplicable).toBe(1);
+  });
+
   it("sees only its own subscription and audit trail", async () => {
     expect((await getSubscription(a.ctx))?.tenantId).toBe(a.tenant.id);
     const events = await listAuditEvents(a.ctx);
@@ -155,6 +219,9 @@ describe("database layer (RLS) on its own", () => {
     membership: "tenant_id",
     invitation: "tenant_id",
     audit_event: "tenant_id",
+    facility_framework: "tenant_id",
+    element_applicability: "tenant_id",
+    survey_cycle: "tenant_id",
   };
 
   it.each(Object.entries(tenantColumn))(

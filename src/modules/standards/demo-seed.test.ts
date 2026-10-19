@@ -39,6 +39,14 @@ describe("DEMO-AMB seed", () => {
     expect(document!.elements.filter((e) => e.isEsr)).toHaveLength(10);
   });
 
+  it("ties a couple of elements to hospitals, so a clinic sees the facility-type rule", () => {
+    const tied = document!.elements.filter((e) => e.facilityTypes.length > 0);
+    expect(tied.map((e) => [e.code, e.facilityTypes, e.isEsr])).toEqual([
+      ["DEMO-CARE.2.3", ["hospital"], false],
+      ["DEMO-CARE.3.1", ["hospital"], false],
+    ]);
+  });
+
   it("uses DEMO- codes and marks every title as placeholder text", () => {
     for (const item of [...document!.chapters, ...document!.standards, ...document!.elements]) {
       expect(item.code).toMatch(/^DEMO-/);

@@ -16,11 +16,12 @@ export async function createOrganizationAction(_: FormState, form: FormData): Pr
       organizationName: String(form.get("organizationName") ?? ""),
       facilityNameAr: String(form.get("facilityNameAr") ?? ""),
       facilityNameEn: String(form.get("facilityNameEn") ?? ""),
-      facilityType: String(form.get("facilityType") ?? ""),
+      facilityType: String(form.get("facilityType") ?? "") as never,
     });
   } catch (error) {
     return { status: "error", error: formErrorCode(error) };
   }
-  // Owners need a second factor next (ARCHITECTURE §6); the app layout sends them there.
-  return redirect({ href: "/", locale });
+  // On to the onboarding wizard. Owners need a second factor first (ARCHITECTURE §6); the app
+  // layout sends them there before the wizard opens.
+  return redirect({ href: "/onboarding", locale });
 }

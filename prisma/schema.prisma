@@ -30,12 +30,15 @@ model Tenant {
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  subscription Subscription?
-  facilities   Facility[]
-  departments  Department[]
-  memberships  Membership[]
-  invitations  Invitation[]
-  auditEvents  AuditEvent[]
+  subscription         Subscription?
+  facilities           Facility[]
+  departments          Department[]
+  memberships          Membership[]
+  invitations          Invitation[]
+  auditEvents          AuditEvent[]
+  facilityFrameworks   FacilityFramework[]
+  elementApplicability ElementApplicability[]
+  surveyCycles         SurveyCycle[]
 
   @@map("tenant")
 }
@@ -60,7 +63,8 @@ model Facility {
   tenantId   String    @map("tenant_id") @db.Uuid
   nameAr     String    @map("name_ar")
   nameEn     String    @map("name_en")
-  // Free text until M5 introduces the facility-type catalogue.
+  // A code from the facility_type catalogue. It decides which frameworks are suggested and
+  // which elements apply (Element.facilityTypes).
   type       String
   licenseNo  String?   @map("license_no")
   city       String?
@@ -68,10 +72,18 @@ model Facility {
   updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
 
-  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  departments Department[]
-  memberships Membership[]
-  invitations Invitation[]
+  // Onboarding wizard progress (M5): the steps saved so far, and when it was finished.
+  onboardingSteps String[]  @default([]) @map("onboarding_steps")
+  onboardedAt     DateTime? @map("onboarded_at") @db.Timestamptz(6)
+
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facilityType  FacilityType           @relation(fields: [type], references: [code])
+  departments   Department[]
+  memberships   Membership[]
+  invitations   Invitation[]
+  frameworks    FacilityFramework[]
+  applicability ElementApplicability[]
+  surveyCycle   SurveyCycle?
 
   @@unique([tenantId, id])
   @@index([tenantId])
@@ -88,9 +100,12 @@ model Department {
   updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
 
-  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // What kind of department this is, so elements tagged with a department type find it.
+  typeCode    String?         @map("department_type")
   // Composite key: a department can never point at another tenant's facility.
-  facility    Facility     @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  facility    Facility        @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  type        DepartmentType? @relation(fields: [typeCode], references: [code])
   memberships Membership[]
   invitations Invitation[]
 
@@ -309,6 +324,7 @@ model Framework {
   standards   Standard[]
   elements    Element[]
   imports     FrameworkImport[]
+  facilities  FacilityFramework[]
 
   @@unique([code, edition])
   @@map("framework")
@@ -390,8 +406,9 @@ model Element {
   facilityTypes   String[] @map("facility_types")
   departmentTypes String[] @map("department_types")
 
-  framework Framework @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
-  standard  Standard  @relation(fields: [frameworkId, standardId], references: [frameworkId, id], onDelete: Cascade)
+  framework     Framework              @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  standard      Standard               @relation(fields: [frameworkId, standardId], references: [frameworkId, id], onDelete: Cascade)
+  applicability ElementApplicability[]
 
   @@unique([frameworkId, code])
   @@index([standardId])
@@ -405,6 +422,8 @@ model FacilityType {
   nameEn String @map("name_en")
   sort   Int
 
+  facilities Facility[]
+
   @@map("facility_type")
 }
 
@@ -413,6 +432,8 @@ model DepartmentType {
   nameAr String @map("name_ar")
   nameEn String @map("name_en")
   sort   Int
+
+  departments Department[]
 
   @@map("department_type")
 }
@@ -437,4 +458,77 @@ model FrameworkImport {
 
   @@index([status, createdAt])
   @@map("framework_import")
+}
+
+// ---------------------------------------------------------------------------
+// What applies to a facility (M5). Tenant-owned, so each table has tenant_id, a composite
+// foreign key to its facility and an RLS policy (migration SQL).
+// ---------------------------------------------------------------------------
+
+// The framework editions a facility is assessed against.
+model FacilityFramework {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  facilityId  String   @map("facility_id") @db.Uuid
+  frameworkId String   @map("framework_id") @db.Uuid
+  createdBy   String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facility  Facility  @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  framework Framework @relation(fields: [frameworkId], references: [id], onDelete: Restrict)
+
+  @@unique([facilityId, frameworkId])
+  @@index([tenantId, facilityId])
+  @@map("facility_framework")
+}
+
+// A facility's own decision that an element does (or does not) apply, overriding the
+// framework's facility-type rule. "Not applicable" needs a justification: a surveyor will
+// ask why.
+model ElementApplicability {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  facilityId    String   @map("facility_id") @db.Uuid
+  elementId     String   @map("element_id") @db.Uuid
+  applicable    Boolean
+  justification String?
+  decidedBy     String?  @map("decided_by") @db.Uuid
+  decidedAt     DateTime @default(now()) @map("decided_at") @db.Timestamptz(6)
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facility Facility @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  element  Element  @relation(fields: [elementId], references: [id], onDelete: Restrict)
+
+  @@unique([facilityId, elementId])
+  @@index([tenantId, facilityId])
+  @@map("element_applicability")
+}
+
+enum AccreditationStatus {
+  never_surveyed
+  accredited
+  conditional
+  not_accredited
+  expired
+}
+
+// Where the facility stands in its accreditation cycle. One current row per facility.
+model SurveyCycle {
+  id             String              @id @default(uuid(7)) @db.Uuid
+  tenantId       String              @map("tenant_id") @db.Uuid
+  facilityId     String              @unique @map("facility_id") @db.Uuid
+  status         AccreditationStatus @default(never_surveyed)
+  lastSurveyOn   DateTime?           @map("last_survey_on") @db.Date
+  nextExpectedOn DateTime?           @map("next_expected_on") @db.Date
+  notes          String?
+  updatedBy      String?             @map("updated_by") @db.Uuid
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facility Facility @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, facilityId])
+  @@map("survey_cycle")
 }
