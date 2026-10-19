@@ -47,7 +47,8 @@
       "esrNotMet": "ESR elements not met: {count}",
       "esrUnverified": "ESR elements not verified: {count}",
       "expired": "Expired scores: {count}",
-      "cta": "Self-assessment"
+      "cta": "Self-assessment",
+      "overdueCapa": "Overdue corrective actions: {count}"
     }
   },
   "notFound": {
@@ -749,6 +750,114 @@
       "expiryBeforeReview": "The expiry date cannot come before the review date.",
       "notInReview": "This version is not awaiting approval.",
       "commentRequired": "Say why the version is rejected."
+    }
+  },
+  "findings": {
+    "severity": {
+      "esr": "ESR",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "status": {
+      "open": "Open",
+      "in_progress": "In progress",
+      "closed": "Closed",
+      "verified": "Verified"
+    },
+    "list": {
+      "title": "Findings & action plans",
+      "intro": "Gaps raised by assessments, the corrective actions planned for each, and their proof of closure. A finding is verified only when a later assessment scores the element fully met.",
+      "mine": "My actions",
+      "mineEmpty": "No open actions are assigned to you.",
+      "heading": "Findings",
+      "filterStatus": "Status",
+      "filterSeverity": "Severity",
+      "all": "All",
+      "apply": "Filter",
+      "emptyTitle": "No findings",
+      "empty": "Findings appear here when a submitted assessment scores an element not met or partially met.",
+      "open": "Open",
+      "noActions": "No actions planned yet",
+      "actions": "{done} of {total} actions done",
+      "overdue": "{count, plural, one {# action overdue} other {# actions overdue}}"
+    },
+    "detail": {
+      "back": "Back to findings",
+      "raised": "Raised {date}",
+      "assessment": "Open the assessment",
+      "statement": "Scorer's comment",
+      "closedNote": "Every action is done. The finding will be verified when a later assessment scores this element fully met.",
+      "verifiedNote": "Verified {date}: a later assessment scored this element fully met.",
+      "verifiedBy": "Open that assessment",
+      "actions": "Corrective actions",
+      "noActions": "No corrective actions yet.",
+      "newAction": "Add a corrective action",
+      "newActionHint": "Say what will be done to close the gap, who is responsible and by when. The owner closes it with evidence."
+    },
+    "capa": {
+      "status": {
+        "open": "Not started",
+        "in_progress": "In progress",
+        "done": "Done",
+        "cancelled": "Cancelled"
+      },
+      "escalation": {
+        "level1": "Overdue",
+        "level2": "Overdue 7+ days: escalated to the quality manager",
+        "level3": "Overdue 14+ days: escalated to the facility owner"
+      },
+      "action": "Action",
+      "actionHint": "For example: retrain the team on the procedure and audit five records.",
+      "owner": "Owner",
+      "chooseOwner": "Choose a person",
+      "formerMember": "Former member",
+      "dueOn": "Due date",
+      "dueLabel": "Due {date}",
+      "create": "Add action",
+      "closedAt": "Closed",
+      "evidence": "Closure evidence",
+      "noEvidence": "No evidence yet. An action cannot be done without it.",
+      "kind": "Evidence type",
+      "kinds": {
+        "document": "Approved document",
+        "link": "Link"
+      },
+      "document": "Document",
+      "chooseDocument": "Choose a document",
+      "noDocuments": "No approved documents in force",
+      "documentOption": "{title} (version {version})",
+      "url": "Link",
+      "description": "Description (optional)",
+      "addEvidence": "Add evidence",
+      "remove": "Remove",
+      "note": "Note",
+      "noteHint": "Required to complete (what was done), cancel or reopen (why).",
+      "transitions": {
+        "start": "Start",
+        "complete": "Mark done",
+        "cancel": "Cancel action",
+        "reopen": "Reopen"
+      },
+      "reschedule": "Change the due date",
+      "newDueOn": "New due date",
+      "reason": "Reason"
+    },
+    "errors": {
+      "invalid": "Check the highlighted fields and try again.",
+      "forbidden": "You do not have permission to do that.",
+      "notFound": "This finding or action no longer exists.",
+      "findingVerified": "This finding is verified. Its actions can no longer change.",
+      "unknownOwner": "Choose a member of this facility as the owner.",
+      "dueInPast": "The due date cannot be in the past.",
+      "itemClosed": "This action is closed. Reopen it first.",
+      "invalidTransition": "The action changed in the meantime. Reload the page and try again.",
+      "evidenceRequired": "Add closure evidence before marking the action done.",
+      "closureNoteRequired": "Write a note saying what was done.",
+      "reasonRequired": "Write the reason.",
+      "documentRequired": "Choose a document.",
+      "documentNotCitable": "That document is not an approved version in force.",
+      "invalidUrl": "Enter a full link starting with https://."
     }
   }
 }

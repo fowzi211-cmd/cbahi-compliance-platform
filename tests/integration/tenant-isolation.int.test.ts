@@ -25,7 +25,18 @@ import {
   uploadVersion,
 } from "@/modules/documents/service";
 import { makePdf } from "@/modules/documents/test-files";
-import { listFindings } from "@/modules/findings/service";
+import {
+  addCapaEvidence,
+  countOverdueCapa,
+  createCapaItem,
+  getFinding,
+  listCapaOwners,
+  listFindings,
+  listMyCapaItems,
+  removeCapaEvidence,
+  rescheduleCapaItem,
+  transitionCapaItem,
+} from "@/modules/findings/service";
 import {
   activateEdition,
   browseLibrary,
@@ -63,6 +74,7 @@ import {
 import {
   approvedDemoDocument,
   createUser,
+  demoCapaItem,
   demoEditionJson,
   forgedContext,
   makeTenant,
@@ -86,6 +98,7 @@ let bAssessment: { assessmentId: string; evidenceId: string };
 let bOpenAssessmentId: string;
 let bDocument: { documentId: string; versionId: string };
 let bPendingVersionId: string;
+let bCapa: { findingId: string; itemId: string; evidenceId: string };
 
 beforeAll(async () => {
   [a, b] = await Promise.all([makeTenant("A"), makeTenant("B")]);
@@ -147,6 +160,10 @@ beforeAll(async () => {
       phiAttested: true,
     })
   ).versionId;
+
+  // A corrective action with evidence in each tenant.
+  await demoCapaItem(a.ctx, a.facility.id);
+  bCapa = await demoCapaItem(b.ctx, b.facility.id);
 });
 
 afterAll(disconnectDb);
@@ -332,6 +349,47 @@ describe("service layer with a fooled permission check", () => {
     ).rejects.toThrow(/documentNotCitable/);
   });
 
+  it("cannot read or change another tenant's corrective actions", async () => {
+    expect(await getFinding(aForged, bCapa.findingId)).toBeNull();
+    expect(await getFinding(a.ctx, bCapa.findingId)).toBeNull();
+    expect(await listMyCapaItems(aForged, b.facility.id)).toEqual([]);
+    expect(await listCapaOwners(aForged, b.facility.id)).toEqual([]);
+    expect(await countOverdueCapa(aForged, b.facility.id, new Date(Date.now() + 30 * 864e5))).toBe(
+      0,
+    );
+    const dueOn = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+    await expect(
+      createCapaItem(aForged, bCapa.findingId, {
+        action: "hijack",
+        ownerUserId: a.ctx.userId,
+        dueOn,
+      }),
+    ).rejects.toThrow(/notFound/);
+    await expect(
+      transitionCapaItem(aForged, bCapa.itemId, { transition: "cancel", note: "hijack" }),
+    ).rejects.toThrow(/notFound/);
+    await expect(
+      rescheduleCapaItem(aForged, bCapa.itemId, { dueOn, reason: "hijack" }),
+    ).rejects.toThrow(/notFound/);
+    await expect(
+      addCapaEvidence(aForged, bCapa.itemId, { kind: "link", url: "https://x.example.test" }),
+    ).rejects.toThrow(/notFound/);
+    await expect(removeCapaEvidence(aForged, bCapa.evidenceId)).rejects.toThrow(/notFound/);
+
+    // Nor cite B's approved document as closure evidence for its own action.
+    const own = await demoCapaItem(a.ctx, a.facility.id);
+    await expect(
+      addCapaEvidence(a.ctx, own.itemId, {
+        kind: "document",
+        documentVersionId: bDocument.versionId,
+      }),
+    ).rejects.toThrow(/documentNotCitable/);
+
+    // B's action is untouched.
+    const bView = (await getFinding(b.ctx, bCapa.findingId))!;
+    expect(bView.capaItems.map((i) => [i.status, i.evidence.length])).toEqual([["open", 1]]);
+  });
+
   it("sees only its own subscription and audit trail", async () => {
     expect((await getSubscription(a.ctx))?.tenantId).toBe(a.tenant.id);
     const events = await listAuditEvents(a.ctx);
@@ -361,6 +419,8 @@ describe("database layer (RLS) on its own", () => {
     document_version: "tenant_id",
     document_approval: "tenant_id",
     document_element: "tenant_id",
+    capa_item: "tenant_id",
+    capa_evidence: "tenant_id",
   };
 
   it.each(Object.entries(tenantColumn))(

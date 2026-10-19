@@ -240,6 +240,14 @@ erDiagram
 - `finding` lives in the `findings` module (`raiseFindings(tx, ctx, …)` runs inside the submit transaction). It stores `statement` (the scorer's comment, in the language it was written in) instead of `statement_ar`/`statement_en`, plus `element_id`, `department_id` and `level_code` so later screens need no joins through the score.
 - All five tables have `tenant_id`, composite foreign keys and the `tenant_isolation` RLS policy.
 
+**As built in M9** (differences from the diagram above):
+
+- `capa_item.status` is `open | in_progress | done | cancelled`. **Overdue is not stored**: it follows from `due_on` and the day, so it can never be stale. `escalation_level` is computed the same way; M10 stores which levels have been notified when it sends the notices. `capa_item` also stores `action` (the text of the plan), `closure_note`, `closed_by`, and `department_id` copied from the finding for scoping.
+- `capa_evidence` holds closure proof: `kind` `document` (an approved `document_version_id`, composite FK) or `link` (`url`), with an optional `description`.
+- `finding` gains `closed_at`, `verified_at` and `verified_score_id` (the later score that proved the fix). A CHECK keeps them consistent with `status`.
+- **Triggers:** an item cannot become `done` without at least one `capa_evidence` row, and the evidence of a done or cancelled item cannot be added, changed or removed until it is reopened.
+- Both new tables have `tenant_id`, composite foreign keys and the `tenant_isolation` RLS policy.
+
 ### 3.4 Documents, committees, notifications, audit
 
 ```mermaid
@@ -305,7 +313,7 @@ erDiagram
 - _Saving a score._ The score is saved with any new evidence, then rule 1 is checked against what is stored, so evidence added earlier counts; a broken rule rolls the save back. Evidence of a level that requires it cannot be removed down to none.
 - _Submit._ Every element in scope must be scored (`incomplete`), because a surveyor scores every applicable element. Submitting writes `ElementStatus` (rule above), raises the findings and locks the assessment in one transaction.
 - _Finding severity (rule 6)._ `esr` for an ESR element; otherwise `high` when the level has no compliance (normalized 0) and `medium` for partial compliance. `low` is left for findings raised by hand.
-- _Readiness._ The dashboard evaluates the internal series per edition the facility uses, as of now; overdue CAPA counts as 0 until M9. Score validity is the default 90 days until per-tenant settings arrive.
+- _Readiness._ The dashboard evaluates the internal series per edition the facility uses, as of now. Score validity is the default 90 days until per-tenant settings arrive.
 - _Who._ Scoring follows `assessment.score` (owner and quality manager facility-wide, department head for their own department). Anyone with `dashboard.view` for the scope can read an assessment and its findings; facility-level readiness needs facility-wide `dashboard.view`.
 
 **As built in M8** (`documents/domain/`, `documents/service.ts`):
@@ -314,6 +322,15 @@ erDiagram
 - _Files._ The type comes from the file's bytes (PDF, Word, Excel, PNG, JPEG), not its name. The same file cannot be uploaded twice to one document (SHA-256).
 - _PHI guard (decision 10)._ Every upload needs the attestation. Text is extracted from PDF and Word files and scanned for a 10-digit national ID or Iqama number (starting 1 or 2, Arabic-Indic digits included), a medical-record or patient number after its label, and a date after a date-of-birth label. A match stops the upload until the uploader confirms the file holds no patient data; the confirmation is audited (`phi_override`, kinds and counts only). Images and spreadsheets are not scanned; the attestation covers them.
 - _Who._ `document.upload` and `document.approve` per the matrix in §6; linking follows upload, retiring follows approve. Every member of the facility can read its documents and download them.
+
+**As built in M9** (`findings/domain/capa.ts`, `findings/service.ts`):
+
+- _CAPA lifecycle (rule 7)._ `start` (open → in progress), `complete` (open or in progress → done; needs evidence and a closure note), `cancel` (needs a reason) and `reopen` (done → in progress; needs a reason, refused once the finding is verified). A due date is never in the past when set or moved; moving it needs a reason, kept in the audit log. Evidence is an approved document version in force (rule 8) or an http(s) link.
+- _Finding status._ Derived from its actions on every change: `open` with no live (non-cancelled) action, `closed` when every live action is done, `in_progress` otherwise. `verified` is final.
+- _Verification._ Submitting an assessment verifies each `closed` finding on an element it scores at full compliance (normalized 1) with a score saved after the finding closed. A department assessment verifies only that department's findings; a facility-wide one verifies any. A finding that is still open is not verified by a good score: its actions must be closed first.
+- _Escalation schedule._ Level 1 from the first day overdue (the owner), level 2 from 7 days (adds the quality manager), level 3 from 14 days (adds the facility owner). M9 shows the level on the action; M10 sends the notices.
+- _Readiness._ Overdue actions are counted across the facility for rule 4.
+- _Who._ Planning (create, reschedule, cancel, reopen) follows `capa.create` for the finding's scope. Starting, adding evidence and completing are for the owner (`capa.closeOwn`) or a planner; the audit event records `closedByOwner`. An action's owner can read its finding even outside their department. Owners must be members of the facility with a role other than viewer.
 
 ## 5. Multi-tenancy and isolation
 

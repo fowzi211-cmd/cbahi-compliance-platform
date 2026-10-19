@@ -13,6 +13,8 @@ import {
   submitAssessment,
 } from "@/modules/assessments/service";
 import { createDocument, decideVersion } from "@/modules/documents/service";
+import { addCapaEvidence, createCapaItem, listFindings } from "@/modules/findings/service";
+import { toRiyadhDay } from "@/lib/dates";
 import { makePdf } from "@/modules/documents/test-files";
 import { createTenant, loadAccessContext, type AccessContext } from "@/modules/tenancy/service";
 
@@ -173,4 +175,23 @@ export async function approvedDemoDocument(
   });
   await decideVersion(ctx, versionId, { decision: "approved" });
   return { documentId, versionId };
+}
+
+/**
+ * A corrective action on the facility's first finding, owned by the caller, with one link as
+ * evidence. Needs a submitted assessment that raised findings.
+ */
+export async function demoCapaItem(ctx: AccessContext, facilityId: string) {
+  const [finding] = await listFindings(ctx, facilityId);
+  if (!finding) throw new Error("fixture needs a finding");
+  const { id: itemId } = await createCapaItem(ctx, finding.id, {
+    action: "Retrain the team on the demo checklist.",
+    ownerUserId: ctx.userId,
+    dueOn: toRiyadhDay(new Date()),
+  });
+  const { id: evidenceId } = await addCapaEvidence(ctx, itemId, {
+    kind: "link",
+    url: "https://intranet.example.test/training-record",
+  });
+  return { findingId: finding.id, itemId, evidenceId };
 }

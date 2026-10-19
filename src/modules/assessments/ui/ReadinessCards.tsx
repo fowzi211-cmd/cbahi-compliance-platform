@@ -43,6 +43,11 @@ export async function ReadinessCards({
               <li className="text-danger">{t("esrUnverified", { count: r.esrUnverified })}</li>
             )}
             {r.expired > 0 && <li>{t("expired", { count: r.expired })}</li>}
+            {r.overdueCapa > 0 && (
+              <li className={r.reasons.includes("overdueCapa") ? "text-danger" : undefined}>
+                {t("overdueCapa", { count: r.overdueCapa })}
+              </li>
+            )}
           </ul>
         </Card>
       ))}

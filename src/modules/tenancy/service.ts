@@ -412,6 +412,29 @@ export async function listFacilityMembers(ctx: AccessContext, facilityId: string
   return withTenant(ctx, (tx) => repo.listFacilityMembers(tx, ctx.tenantId, facilityId));
 }
 
+/**
+ * The people of a facility by name, for any member: who can own a corrective action, and
+ * whose name to show on one. Emails stay on the people screen.
+ */
+export async function listFacilityPeople(ctx: AccessContext, facilityId: string) {
+  if (!isMemberOf(ctx, facilityId)) return [];
+  const rows = await withTenant(ctx, (tx) =>
+    repo.listFacilityMembers(tx, ctx.tenantId, facilityId),
+  );
+  const people = new Map<string, { userId: string; name: string; roles: MembershipRole[] }>();
+  for (const row of rows) {
+    const person = people.get(row.user.id) ?? {
+      userId: row.user.id,
+      name: row.user.name,
+      roles: [],
+    };
+    person.roles.push(row.role);
+    people.set(row.user.id, person);
+  }
+  return [...people.values()];
+}
+export type FacilityPerson = Awaited<ReturnType<typeof listFacilityPeople>>[number];
+
 export function getSubscription(ctx: AccessContext) {
   return withTenant(ctx, (tx) => repo.findSubscription(tx, ctx.tenantId));
 }
