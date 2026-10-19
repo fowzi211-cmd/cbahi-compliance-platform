@@ -39,7 +39,7 @@ export const navItems: NavItem[] = [
   { key: "documents", href: "/documents", icon: FileText, milestone: "M8" },
   { key: "committees", href: "/committees", icon: Users, milestone: "M12" },
   { key: "people", href: "/people", icon: UserCog },
-  { key: "settings", href: "/settings", icon: Settings, milestone: "M5" },
+  { key: "settings", href: "/settings", icon: Settings },
 ];
 
 export const sectionMilestones = Object.fromEntries(

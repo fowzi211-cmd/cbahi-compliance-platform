@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { facilityTypes } from "./facility-types";
 import { membershipRoles } from "./schemas";
 
 // An invitation is a one-time link into one facility role. It expires after a week: long
@@ -47,6 +48,6 @@ export const createOrganizationInput = z.object({
   organizationName: z.string().trim().min(1).max(200),
   facilityNameAr: z.string().trim().min(1).max(200),
   facilityNameEn: z.string().trim().min(1).max(200),
-  facilityType: z.string().trim().min(1).max(50),
+  facilityType: z.enum(facilityTypes),
 });
 export type CreateOrganizationInput = z.input<typeof createOrganizationInput>;

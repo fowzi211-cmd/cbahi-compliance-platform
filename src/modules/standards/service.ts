@@ -3,8 +3,14 @@ import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { withSystem, withTenant, type Tx } from "@/lib/db";
 import { DomainError, ForbiddenError } from "@/lib/errors";
-import { recordPlatformAudit } from "@/modules/audit/service";
-import type { AccessContext } from "@/modules/tenancy/service";
+import { recordAudit, recordPlatformAudit } from "@/modules/audit/service";
+import { allowed, getFacility, type AccessContext } from "@/modules/tenancy/service";
+import {
+  applicabilityChange,
+  buildApplicabilityView,
+  suggestedPrograms,
+  type ApplicabilityFilter,
+} from "./domain/applicability";
 import { buildBrowseView, type BrowseFilter } from "./domain/browse";
 import { diffEditions, type EditionDiff } from "./domain/diff";
 import {
@@ -32,6 +38,13 @@ export type { ImportIssue, IssueCode } from "./domain/issues";
 export { evidenceTypes, importFormats, limits, programs } from "./domain/import-format";
 export { localized } from "./domain/display";
 export { frameworkFormFields } from "./domain/readers";
+export { justificationLimits } from "./domain/applicability";
+export type {
+  ApplicabilityElement,
+  ApplicabilityFilter,
+  ApplicabilityReason,
+  ApplicabilityView,
+} from "./domain/applicability";
 
 /**
  * The platform admin, who maintains the library for every tenant. Not a tenant role: the
@@ -413,6 +426,216 @@ export async function browseEdition(
   authorizePlatform(actor);
   if (!z.uuid().safeParse(frameworkId).success) return null;
   return withSystem((tx) => browse(tx, frameworkId, filter));
+}
+
+// --- What applies to a facility (M5) ----------------------------------------------------------
+
+/** The facility- and department-type catalogues, for forms. */
+export async function listCatalogues(ctx: AccessContext) {
+  authorizeMember(ctx);
+  const [facilityTypes, departmentTypes] = await withTenant(ctx, (tx) => repo.loadCatalogues(tx));
+  return { facilityTypes, departmentTypes };
+}
+
+/** The editions a facility is assessed against. Empty when the caller is not a member. */
+export async function listFacilityFrameworks(ctx: AccessContext, facilityId: string) {
+  if (!(await getFacility(ctx, facilityId))) return [];
+  return withTenant(ctx, async (tx) =>
+    (await repo.listFacilityFrameworks(tx, ctx.tenantId, facilityId)).map((f) => f.framework),
+  );
+}
+
+/**
+ * The live editions a facility can choose from, marking the ones it already uses and the
+ * ones its type suggests. An edition it uses that has since been retired stays in the list,
+ * so it is never dropped without the owner seeing it.
+ */
+export async function getFrameworkChoices(ctx: AccessContext, facilityId: string) {
+  const facility = await getFacility(ctx, facilityId);
+  if (!facility) return null;
+  const suggested: readonly string[] = suggestedPrograms(facility.type);
+  return withTenant(ctx, async (tx) => {
+    const [active, chosen] = await Promise.all([
+      repo.listEditions(tx, { status: "active" }),
+      repo.listFacilityFrameworks(tx, ctx.tenantId, facilityId),
+    ]);
+    const chosenIds = new Set(chosen.map((c) => c.frameworkId));
+    const retiredChosen = await repo.listEditions(tx, {
+      id: { in: [...chosenIds].filter((id) => !active.some((a) => a.id === id)) },
+    });
+    const editions = await withEsrCounts(tx, [...active, ...retiredChosen]);
+    return {
+      facilityType: facility.type,
+      // Nothing chosen yet: the form starts from the suggestion instead of an empty list.
+      firstVisit: chosen.length === 0,
+      choices: editions.map((e) => ({
+        ...e,
+        suggested: e.program !== null && suggested.includes(e.program),
+        selected: chosenIds.has(e.id),
+      })),
+    };
+  });
+}
+
+export type FrameworkChoices = NonNullable<Awaited<ReturnType<typeof getFrameworkChoices>>>;
+
+const frameworkIdsSchema = z.array(z.uuid()).max(20);
+
+/**
+ * Sets which editions the facility is assessed against. Only live editions can be added;
+ * one already in use may stay after it is retired, until the facility moves to the new one.
+ */
+export async function setFacilityFrameworks(
+  ctx: AccessContext,
+  facilityId: string,
+  frameworkIds: string[],
+) {
+  if (!allowed(ctx, "facility.updateSettings", { facilityId })) {
+    throw new ForbiddenError("facility.updateSettings");
+  }
+  const wanted = [...new Set(frameworkIdsSchema.parse(frameworkIds))];
+  if (wanted.length === 0) throw new DomainError("noFrameworks");
+  if (!(await getFacility(ctx, facilityId))) throw new ForbiddenError("facility.updateSettings");
+
+  return withTenant(ctx, async (tx) => {
+    const current = await repo.listFacilityFrameworks(tx, ctx.tenantId, facilityId);
+    const currentIds = new Set(current.map((c) => c.frameworkId));
+    const added = wanted.filter((id) => !currentIds.has(id));
+    const removed = [...currentIds].filter((id) => !wanted.includes(id));
+    if (added.length > 0) {
+      const live = await repo.listEditions(tx, { id: { in: added }, status: "active" });
+      if (live.length !== added.length) throw new DomainError("unknownFramework");
+      // Two editions of one framework would score the same requirements twice.
+      const codes = [
+        ...current.filter((c) => !removed.includes(c.frameworkId)).map((c) => c.framework.code),
+        ...live.map((l) => l.code),
+      ];
+      if (new Set(codes).size !== codes.length) throw new DomainError("duplicateFramework");
+      await repo.insertFacilityFrameworks(tx, ctx.tenantId, facilityId, added, ctx.userId);
+    }
+    if (removed.length > 0) {
+      await repo.deleteFacilityFrameworks(tx, ctx.tenantId, facilityId, removed);
+    }
+    if (added.length > 0 || removed.length > 0) {
+      const label = (f: { code: string; edition: string }) => `${f.code} ${f.edition}`;
+      const after = await repo.listFacilityFrameworks(tx, ctx.tenantId, facilityId);
+      await recordAudit(tx, ctx, {
+        action: "update",
+        entity: "facility_frameworks",
+        entityId: facilityId,
+        before: current.map((c) => label(c.framework)),
+        after: after.map((c) => label(c.framework)),
+      });
+    }
+    return { added: added.length, removed: removed.length };
+  });
+}
+
+/**
+ * One chosen edition as it applies to the facility: the framework's facility-type rule,
+ * then the facility's recorded decisions. Null when the facility is not the caller's or
+ * does not use that edition.
+ */
+export async function getApplicability(
+  ctx: AccessContext,
+  facilityId: string,
+  frameworkId: string,
+  filter: ApplicabilityFilter = {},
+) {
+  if (!z.uuid().safeParse(frameworkId).success) return null;
+  const facility = await getFacility(ctx, facilityId);
+  if (!facility) return null;
+  return withTenant(ctx, async (tx) => {
+    const chosen = await repo.listFacilityFrameworks(tx, ctx.tenantId, facilityId);
+    const framework = chosen.find((c) => c.frameworkId === frameworkId)?.framework;
+    if (!framework) return null;
+    const [content, overrides] = await Promise.all([
+      repo.listApplicabilityElements(tx, frameworkId),
+      repo.listApplicabilityOverrides(tx, ctx.tenantId, facilityId),
+    ]);
+    return {
+      framework,
+      facilityType: facility.type,
+      chapters: content.chapters,
+      view: buildApplicabilityView(content, facility.type, overrides, filter),
+    };
+  });
+}
+
+const decisionSchema = z.object({
+  applicable: z.boolean(),
+  justification: z.string().max(5000).nullable().default(null),
+});
+
+/**
+ * Records whether one element applies to the facility. A decision equal to the framework's
+ * own rule clears the override; ruling an element out needs a justification (domain rule).
+ * ESR elements can be ruled out too, because some genuinely do not apply, but the screen
+ * flags them.
+ */
+export async function decideApplicability(
+  ctx: AccessContext,
+  facilityId: string,
+  elementId: string,
+  input: z.input<typeof decisionSchema>,
+  now = new Date(),
+) {
+  if (!allowed(ctx, "facility.updateSettings", { facilityId })) {
+    throw new ForbiddenError("facility.updateSettings");
+  }
+  const decision = decisionSchema.parse(input);
+  if (!z.uuid().safeParse(elementId).success) throw new DomainError("unknownElement");
+  const facility = await getFacility(ctx, facilityId);
+  if (!facility) throw new ForbiddenError("facility.updateSettings");
+
+  return withTenant(ctx, async (tx) => {
+    const element = await repo.findFacilityElement(tx, ctx.tenantId, facilityId, elementId);
+    if (!element) throw new DomainError("unknownElement");
+    const [existing] = await repo.listApplicabilityOverrides(tx, ctx.tenantId, facilityId, [
+      elementId,
+    ]);
+    const byFramework =
+      element.facilityTypes.length === 0 || element.facilityTypes.includes(facility.type);
+    const change = applicabilityChange(byFramework, decision);
+    if (change.kind === "invalid") throw new DomainError(change.problem);
+
+    const before = existing
+      ? { applicable: existing.applicable, justification: existing.justification }
+      : null;
+    if (change.kind === "clear") {
+      if (existing) {
+        await repo.deleteApplicability(tx, ctx.tenantId, facilityId, elementId);
+        await recordAudit(tx, ctx, {
+          action: "delete",
+          entity: "element_applicability",
+          entityId: elementId,
+          before: { code: element.code, ...before },
+        });
+      }
+      return { applicable: byFramework };
+    }
+    await repo.upsertApplicability(tx, ctx.tenantId, {
+      facilityId,
+      elementId,
+      applicable: change.applicable,
+      justification: change.justification,
+      decidedBy: ctx.userId,
+      decidedAt: now,
+    });
+    await recordAudit(tx, ctx, {
+      action: existing ? "update" : "create",
+      entity: "element_applicability",
+      entityId: elementId,
+      before: before && { code: element.code, ...before },
+      after: {
+        code: element.code,
+        isEsr: element.isEsr,
+        applicable: change.applicable,
+        justification: change.justification,
+      },
+    });
+    return { applicable: change.applicable };
+  });
 }
 
 // --- Seeding ------------------------------------------------------------------------------------

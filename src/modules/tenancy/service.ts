@@ -32,6 +32,13 @@ import {
   type MembershipInput,
   type MembershipRole,
 } from "./domain/schemas";
+import {
+  isOnboardingStep,
+  nextOnboardingStep,
+  onboardingSteps,
+  withStepDone,
+  type OnboardingStep,
+} from "./domain/onboarding";
 import { sendInvitationEmail } from "./invitation-email";
 import * as repo from "./repo";
 
@@ -39,6 +46,9 @@ export type { Action, Actor, Resource } from "./domain/policy";
 export type { InvitationStatus } from "./domain/invitations";
 export type { MembershipRole } from "./domain/schemas";
 export { membershipRoles } from "./domain/schemas";
+export { facilityTypes, type FacilityType } from "./domain/facility-types";
+export { isOnboardingStep, onboardingSteps, stepAfter } from "./domain/onboarding";
+export type { OnboardingStep } from "./domain/onboarding";
 
 /**
  * Who is acting, in which tenant, and what they hold there. Built from the session by
@@ -56,6 +66,11 @@ function authorize(ctx: AccessContext, action: Action, resource: Resource) {
 
 function isMemberOf(ctx: AccessContext, facilityId: string) {
   return rolesInFacility(ctx.actor, facilityId).length > 0;
+}
+
+/** Whether the caller holds any role in the facility (the bar for reading its setup). */
+export function isFacilityMember(ctx: AccessContext, facilityId: string) {
+  return isMemberOf(ctx, facilityId);
 }
 
 // --- Sessions and access ----------------------------------------------------------------------
@@ -224,10 +239,111 @@ export async function renameFacility(
   });
 }
 
+/**
+ * The facility's profile from the first onboarding step. Changing the type changes which
+ * elements apply from then on; decisions the facility already recorded stay as they are.
+ * Returns false when the facility does not exist for this tenant.
+ */
+export async function updateFacilityProfile(
+  ctx: AccessContext,
+  facilityId: string,
+  input: FacilityInput,
+) {
+  authorize(ctx, "facility.updateSettings", { facilityId });
+  const data = facilityInput.parse(input);
+  return withTenant(ctx, async (tx) => {
+    const before = await repo.findFacility(tx, ctx.tenantId, facilityId);
+    if (!before) return false;
+    const after = {
+      nameAr: data.nameAr,
+      nameEn: data.nameEn,
+      type: data.type,
+      licenseNo: data.licenseNo ?? null,
+      city: data.city ?? null,
+    };
+    await repo.updateFacility(tx, ctx.tenantId, facilityId, after);
+    await recordAudit(tx, ctx, {
+      action: "update",
+      entity: "facility",
+      entityId: facilityId,
+      before: {
+        nameAr: before.nameAr,
+        nameEn: before.nameEn,
+        type: before.type,
+        licenseNo: before.licenseNo,
+        city: before.city,
+      },
+      after,
+    });
+    return true;
+  });
+}
+
+// --- Onboarding --------------------------------------------------------------------------------
+
+export type OnboardingProgress = {
+  done: OnboardingStep[];
+  next: OnboardingStep | null;
+  onboardedAt: Date | null;
+};
+
+/** Where the facility is in the onboarding wizard. Null when the caller is not a member. */
+export async function getOnboardingProgress(
+  ctx: AccessContext,
+  facilityId: string,
+): Promise<OnboardingProgress | null> {
+  const facility = await getFacility(ctx, facilityId);
+  if (!facility) return null;
+  const done = onboardingSteps.filter((s) => facility.onboardingSteps.includes(s));
+  return { done, next: nextOnboardingStep(done), onboardedAt: facility.onboardedAt };
+}
+
+/**
+ * Records that a wizard step was saved. When the last open step is saved the facility is
+ * marked onboarded (once: revisiting a step later does not move the date).
+ */
+export async function completeOnboardingStep(
+  ctx: AccessContext,
+  facilityId: string,
+  step: OnboardingStep,
+  now = new Date(),
+) {
+  authorize(ctx, "facility.updateSettings", { facilityId });
+  if (!isOnboardingStep(step)) throw new DomainError("invalid");
+  return withTenant(ctx, async (tx) => {
+    const facility = await repo.findFacility(tx, ctx.tenantId, facilityId);
+    if (!facility) return null;
+    const done = withStepDone(facility.onboardingSteps, step);
+    const finished = !facility.onboardedAt && nextOnboardingStep(done) === null;
+    if (done.length !== facility.onboardingSteps.length || finished) {
+      await repo.updateFacility(tx, ctx.tenantId, facilityId, {
+        onboardingSteps: done,
+        ...(finished ? { onboardedAt: now } : {}),
+      });
+    }
+    if (finished) {
+      await recordAudit(tx, ctx, {
+        action: "complete",
+        entity: "onboarding",
+        entityId: facilityId,
+        after: { steps: done },
+      });
+    }
+    return {
+      done,
+      next: nextOnboardingStep(done),
+      onboardedAt: facility.onboardedAt ?? (finished ? now : null),
+    };
+  });
+}
+
 export async function createDepartment(ctx: AccessContext, input: DepartmentInput) {
   const data = departmentInput.parse(input);
   authorize(ctx, "facility.updateSettings", { facilityId: data.facilityId });
   return withTenant(ctx, async (tx) => {
+    if (data.typeCode && !(await repo.departmentTypeExists(tx, data.typeCode))) {
+      throw new DomainError("unknownDepartmentType");
+    }
     const department = await repo.insertDepartment(tx, ctx.tenantId, data);
     await recordAudit(tx, ctx, {
       action: "create",
@@ -242,6 +358,28 @@ export async function createDepartment(ctx: AccessContext, input: DepartmentInpu
 export async function listDepartments(ctx: AccessContext, facilityId: string) {
   if (!isMemberOf(ctx, facilityId)) return [];
   return withTenant(ctx, (tx) => repo.listDepartments(tx, ctx.tenantId, facilityId));
+}
+
+/** Returns false when there is no such department in this tenant. */
+export async function archiveDepartment(
+  ctx: AccessContext,
+  departmentId: string,
+  now = new Date(),
+) {
+  return withTenant(ctx, async (tx) => {
+    const department = await repo.findDepartment(tx, ctx.tenantId, departmentId);
+    if (!department) return false;
+    authorize(ctx, "facility.updateSettings", { facilityId: department.facilityId });
+    const { count } = await repo.archiveDepartment(tx, ctx.tenantId, departmentId, now);
+    if (count === 0) return false;
+    await recordAudit(tx, ctx, {
+      action: "archive",
+      entity: "department",
+      entityId: departmentId,
+      before: { nameAr: department.nameAr, nameEn: department.nameEn },
+    });
+    return true;
+  });
 }
 
 /** Grants a role directly (platform tooling and seeds); people normally join by invitation. */

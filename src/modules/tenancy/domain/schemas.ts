@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { facilityTypes } from "./facility-types";
 
 const name = z.string().trim().min(1).max(200);
 
@@ -24,17 +25,26 @@ export const createTenantInput = z.object({
   facility: z.object({
     nameAr: name,
     nameEn: name,
-    type: z.string().trim().min(1).max(50),
+    type: z.enum(facilityTypes),
   }),
 });
 export type CreateTenantInput = z.input<typeof createTenantInput>;
 
+// Empty optional fields arrive from forms as "", which means "not given".
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .transform((value) => value || undefined);
+
 export const facilityInput = z.object({
   nameAr: name,
   nameEn: name,
-  type: z.string().trim().min(1).max(50),
-  licenseNo: z.string().trim().max(50).optional(),
-  city: z.string().trim().max(100).optional(),
+  type: z.enum(facilityTypes),
+  licenseNo: optionalText(50),
+  city: optionalText(100),
 });
 export type FacilityInput = z.input<typeof facilityInput>;
 
@@ -42,6 +52,8 @@ export const departmentInput = z.object({
   facilityId: z.uuid(),
   nameAr: name,
   nameEn: name,
+  // A code from the department_type catalogue (checked by the service).
+  typeCode: optionalText(50),
 });
 export type DepartmentInput = z.input<typeof departmentInput>;
 

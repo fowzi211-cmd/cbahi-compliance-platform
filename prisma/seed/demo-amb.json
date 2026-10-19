@@ -577,7 +577,8 @@
       "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
       "is_esr": false,
       "evidence_types": ["record_review", "interview"],
-      "department_types": ["outpatient", "nursing", "emergency"]
+      "department_types": ["outpatient", "nursing", "emergency"],
+      "facility_types": ["hospital"]
     },
     {
       "code": "DEMO-CARE.3.1",
@@ -588,7 +589,8 @@
       "description_en": "Fictional text used only to demonstrate the platform. It is not taken from any accreditation standard.",
       "is_esr": false,
       "evidence_types": ["record_review", "interview"],
-      "department_types": ["outpatient", "nursing", "emergency"]
+      "department_types": ["outpatient", "nursing", "emergency"],
+      "facility_types": ["hospital"]
     },
     {
       "code": "DEMO-CARE.3.2",

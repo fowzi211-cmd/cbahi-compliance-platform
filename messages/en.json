@@ -32,7 +32,10 @@
     "title": "Readiness dashboard",
     "intro": "This dashboard will show compliance by chapter and department, essential safety requirement status, overdue action items and the compliance trend over time.",
     "emptyTitle": "No data yet",
-    "emptyBody": "Set up your facility, then run a first self-assessment to see results here."
+    "emptyBody": "Set up your facility, then run a first self-assessment to see results here.",
+    "setupTitle": "Finish setting up your facility",
+    "setupBody": "Steps done: {done} of {total}. Once setup is done, the elements that apply to your facility show up here.",
+    "setupCta": "Continue setup"
   },
   "notFound": {
     "title": "Page not found",
@@ -110,7 +113,7 @@
     "facilityNameAr": "Facility name in Arabic",
     "facilityNameEn": "Facility name in English",
     "facilityType": "Facility type",
-    "facilityTypeHint": "Used later to decide which standards apply.",
+    "facilityTypeHint": "It decides which frameworks are suggested and which elements apply to your facility.",
     "submit": "Create organization",
     "facilityTypes": {
       "hospital": "Hospital",
@@ -403,5 +406,126 @@
         "editionExists": "This edition already exists."
       }
     }
+  },
+  "onboarding": {
+    "title": "Facility setup",
+    "stepOf": "Step {number} of {total}",
+    "stepDone": "(done)",
+    "saveAndContinue": "Save and continue",
+    "continue": "Continue",
+    "forbidden": "The facility owner completes the setup steps. You can see what has been saved on the other pages.",
+    "steps": {
+      "facility": "Facility details",
+      "frameworks": "Frameworks",
+      "applicability": "Element applicability",
+      "departments": "Departments",
+      "people": "Team",
+      "survey": "Survey cycle"
+    },
+    "hints": {
+      "facility": "Check the facility's name, type and licence number. The type decides which frameworks are suggested and which elements apply.",
+      "frameworks": "Choose the accreditation frameworks your facility is assessed against. We pre-selected the ones that fit your facility type; you can change them.",
+      "applicability": "Elements apply automatically by facility type. If one does not apply to you, record that with a clear justification: a surveyor will ask about it.",
+      "departments": "Add the facility's departments and the type of each, so every element is linked to the department responsible for it.",
+      "people": "Invite your team now, or continue and invite them later from the Team page.",
+      "survey": "When was your facility's last accreditation survey, and when do you expect the next one?"
+    },
+    "facility": {
+      "typeHint": "Changing the type changes which elements apply; decisions you already recorded stay as they are.",
+      "licenseNo": "Licence number (optional)",
+      "city": "City (optional)"
+    },
+    "frameworks": {
+      "forType": "Your facility type: {type}. Suggested frameworks are pre-selected.",
+      "suggested": "Suggested for your facility type",
+      "retired": "Retired edition",
+      "details": "Edition {edition} · Elements {elements} · ESR {esr}",
+      "none": "No frameworks are published in the library yet. The platform team publishes them once their licence is confirmed; come back to this step then."
+    },
+    "applicability": {
+      "counts": "Elements: {total} · Apply: {applicable} · Do not apply: {notApplicable}",
+      "esrRuledOut": "ESR elements ruled out: {count}. Make sure the justifications hold up; a surveyor checks these first.",
+      "chapter": "Chapter",
+      "allChapters": "All chapters",
+      "onlyNotApplicable": "Not applicable only",
+      "apply": "Apply",
+      "reset": "Clear filters",
+      "empty": "No elements match the filters.",
+      "noFrameworks": "Choose at least one framework in the Frameworks step first.",
+      "reasons": {
+        "applies": "Applies",
+        "otherFacilityType": "Not for your facility type",
+        "markedNotApplicable": "Not applicable (facility decision)",
+        "markedApplicable": "Applies (facility decision)"
+      },
+      "recordedReason": "Recorded justification:",
+      "justification": "Why it does not apply",
+      "justificationHint": "Give a reason a surveyor can verify, such as \"The facility does not provide sedation\". At least 10 characters.",
+      "note": "Note (optional)",
+      "noteHint": "Why the facility brings in an element the framework ties to another facility type.",
+      "esrWarning": "This is an ESR element. Ruling it out needs a strong, documented justification.",
+      "markNotApplicable": "Mark as not applicable",
+      "markApplicable": "Mark as applicable",
+      "restore": "Go back to the framework's rule"
+    },
+    "departments": {
+      "listTitle": "Facility departments",
+      "empty": "No departments added yet.",
+      "addTitle": "Add a department",
+      "nameAr": "Department name in Arabic",
+      "nameEn": "Department name in English",
+      "type": "Department type",
+      "noType": "No type",
+      "add": "Add department",
+      "archive": "Remove",
+      "archiveLabel": "Remove the department {name}"
+    },
+    "people": {
+      "summary": "Team members now: {members}. Invitations awaiting acceptance: {invitations}.",
+      "expires": "expires {date}",
+      "manage": "Manage the team and invitations"
+    },
+    "survey": {
+      "status": "Accreditation status",
+      "statuses": {
+        "never_surveyed": "Never surveyed",
+        "accredited": "Accredited",
+        "conditional": "Conditionally accredited",
+        "not_accredited": "Not accredited",
+        "expired": "Accreditation expired"
+      },
+      "lastSurveyOn": "Date of the last survey",
+      "nextExpectedOn": "Expected date of the next survey (optional)",
+      "nextHint": "Suggested as three years after the last survey. Change it to the date you were given.",
+      "notes": "Notes (optional)",
+      "notesHint": "Do not enter any patient information.",
+      "finish": "Save and finish setup"
+    },
+    "finished": {
+      "title": "Facility setup is complete",
+      "body": "Setup was completed on {date}. You can change any step at any time.",
+      "bodyNoDate": "Setup is complete. You can change any step at any time.",
+      "toDashboard": "Go to the readiness dashboard",
+      "toLibrary": "Browse the standards library"
+    },
+    "errors": {
+      "invalid": "Check the fields and try again.",
+      "forbidden": "You are not allowed to do this.",
+      "noFrameworks": "Choose at least one framework.",
+      "unknownFramework": "One of the chosen frameworks is no longer available. Refresh the page and choose again.",
+      "duplicateFramework": "You cannot choose two editions of the same framework.",
+      "tooShort": "The justification is too short. Write at least 10 characters explaining why.",
+      "tooLong": "The text is too long. The limit is 1000 characters.",
+      "unknownElement": "This element is not part of your facility's frameworks.",
+      "unknownDepartmentType": "Choose a department type from the list.",
+      "invalidDate": "Enter a valid date.",
+      "nextBeforeLast": "The next survey must come after the last one.",
+      "lastInFuture": "The last survey cannot be in the future.",
+      "lastSurveyRequired": "Enter the date of the last survey.",
+      "lastSurveyNotExpected": "A facility that was never surveyed has no last survey date."
+    }
+  },
+  "settings": {
+    "intro": "Change your facility's details and what applies to it at any time. Each section is a setup step."
   }
 }

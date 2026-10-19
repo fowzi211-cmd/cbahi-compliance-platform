@@ -19,8 +19,7 @@ export async function generateMetadata({
 }
 
 // First run for someone who signed up without an invitation: create the organization and
-// its first facility. The full onboarding wizard (facility type, departments, standards)
-// arrives in M5.
+// its first facility. The onboarding wizard (/onboarding) takes it from there.
 export default async function SetupPage({ params }: PageProps<"/[locale]/setup">) {
   const { locale } = await params;
   setRequestLocale(locale as Locale);
