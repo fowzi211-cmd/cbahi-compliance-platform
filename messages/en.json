@@ -18,7 +18,8 @@
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "people": "People & access",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "requests": "Help requests"
   },
   "shell": {
     "switchLocale": "العربية",
@@ -128,6 +129,11 @@
       "title": "Scores relying on expired documents",
       "intro": "These scores are still in force, but the document they cite has expired. A surveyor will ask for the current one.",
       "document": "{title}, expired {date}"
+    },
+    "offer": {
+      "title": "Would you like help from our team?",
+      "body": "Last night's check found signs that your facility may struggle at survey:",
+      "cta": "See the offer"
     }
   },
   "notFound": {
@@ -498,6 +504,74 @@
         "importNotPending": "This import has already been committed or discarded.",
         "editionExists": "This edition already exists."
       }
+    },
+    "nav": {
+      "label": "Platform sections",
+      "standards": "Standards library",
+      "tenants": "Tenants",
+      "consultants": "Consultants",
+      "requests": "Help requests"
+    },
+    "tenants": {
+      "title": "Tenants",
+      "intro": "Set each tenant's tier and assign consultants to Hybrid facilities. These screens show the subscription and facility names only, never compliance data.",
+      "search": "Tenant name",
+      "searchButton": "Search",
+      "empty": "No tenant matches.",
+      "summary": "{facilities, plural, one {# facility} other {# facilities}} · since {date}",
+      "detailTitle": "Tenant",
+      "back": "Tenants",
+      "lapsed": "The Hybrid term is not in force today, so the tenant is treated as Platform.",
+      "subscription": "Subscription",
+      "tier": "Tier",
+      "startsOn": "Starts on",
+      "endsOn": "Ends on (optional)",
+      "endsOnHint": "Leave empty for no end date. After this day a Hybrid tenant falls back to Platform.",
+      "features": "Services",
+      "followTier": "As the tier (Platform: {platform}, Hybrid: {hybrid})",
+      "on": "on",
+      "off": "off",
+      "forceOn": "Always on",
+      "forceOff": "Always off",
+      "save": "Save the subscription",
+      "facilities": "Facilities and consultants",
+      "consultantsOff": "Consultants can be assigned only while the tenant is Hybrid.",
+      "noConsultants": "No consultant assigned.",
+      "since": "since {date}",
+      "endAssignment": "End the assignment",
+      "consultant": "Consultant",
+      "chooseConsultant": "Choose a consultant",
+      "assign": "Assign"
+    },
+    "consultants": {
+      "title": "Consultants",
+      "intro": "Platform consultants see only the facilities they are assigned to, and only while the tenant is Hybrid.",
+      "add": "Add a consultant",
+      "email": "Email of an existing account",
+      "emailHint": "The person signs up first. Consultants must turn on two-factor authentication before they can open a facility.",
+      "addButton": "Add",
+      "empty": "No consultants yet.",
+      "noMfa": "Two-factor not on",
+      "remove": "Remove",
+      "noAssignments": "Not assigned to any facility."
+    },
+    "requests": {
+      "title": "Help requests",
+      "intro": "Requests sent by facilities, newest first. Offers a facility has not accepted are not listed.",
+      "scopeLabel": "Requests to show",
+      "scopes": {
+        "active": "To do",
+        "closed": "Closed"
+      },
+      "empty": "Nothing here.",
+      "fromSignal": "Accepted offer of help:",
+      "teamNote": "Team note: {note}",
+      "note": "Note to the facility (optional)",
+      "actions": {
+        "start": "Start",
+        "complete": "Mark done",
+        "cancel": "Cancel"
+      }
     }
   },
   "onboarding": {
@@ -619,7 +693,18 @@
     }
   },
   "settings": {
-    "intro": "Change your facility's details and what applies to it at any time. Each section is a setup step."
+    "intro": "Change your facility's details and what applies to it at any time. Each section is a setup step.",
+    "subscription": {
+      "title": "Subscription",
+      "term": "From {start} to {end}",
+      "since": "Since {start}",
+      "features": "Included services",
+      "noFeatures": "Software only: every module, without consultant services.",
+      "consultants": "Consultants with access to this facility",
+      "noConsultants": "No consultant has access.",
+      "consultant": "{name}, since {date}",
+      "consultantsHint": "Consultants are assigned by the platform team and see this facility's data while the assignment lasts. Ask the platform team to end an assignment at any time."
+    }
   },
   "assessments": {
     "list": {
@@ -1192,6 +1277,68 @@
       "meetingInFuture": "A meeting can only be recorded once it has taken place.",
       "meetingExists": "A meeting on that day is already recorded.",
       "minutesExist": "This meeting already has minutes. Upload corrections as a new version of the minutes document."
+    }
+  },
+  "requests": {
+    "title": "Help requests",
+    "intro": "Ask the platform team for a mock survey, a consultation or a gap assessment, and follow what happens to your requests.",
+    "noAccess": "Only the facility owner and the quality manager can send help requests.",
+    "new": "New request",
+    "kind": "What do you need?",
+    "chooseKind": "Choose a service",
+    "note": "Details (optional)",
+    "noteHint": "Dates, departments or questions that help the team prepare. Do not enter any patient information.",
+    "send": "Send the request",
+    "empty": "No requests yet.",
+    "offerTitle": "Offer of help",
+    "offerWhy": "Our nightly check found:",
+    "teamNote": "Platform team: {note}",
+    "accept": "Accept and send",
+    "dismiss": "Not now",
+    "cancel": "Withdraw"
+  },
+  "subscriptions": {
+    "saved": "Saved.",
+    "tiers": {
+      "platform": "Platform",
+      "hybrid": "Hybrid"
+    },
+    "features": {
+      "consultantAssignment": "Assigned consultant",
+      "consultantMockSurvey": "Consultant mock surveys",
+      "gapAssessment": "Gap assessment",
+      "struggleSignal": "Offers of help when readiness slips"
+    },
+    "kinds": {
+      "mock_survey": "Mock survey",
+      "consultation": "Consultation",
+      "gap_assessment": "Gap assessment",
+      "unknown": "Offer of help"
+    },
+    "statuses": {
+      "offered": "Waiting for your answer",
+      "open": "Sent",
+      "in_progress": "In progress",
+      "done": "Done",
+      "dismissed": "Declined",
+      "cancelled": "Cancelled"
+    },
+    "reasons": {
+      "esrNotMet": "At least one ESR element is not met.",
+      "overdueCapa": "More than 5 corrective actions are overdue.",
+      "surveySoonNotReady": "The survey is within 90 days and compliance is below 80%."
+    },
+    "errors": {
+      "invalid": "Check the form and try again.",
+      "forbidden": "You do not have permission to do this.",
+      "notFound": "This item no longer exists.",
+      "endsBeforeStart": "The end date must not be before the start date.",
+      "notConsultant": "This account is not a platform consultant.",
+      "noAccount": "No account uses this email. The person must sign up first.",
+      "featureOff": "This tenant's subscription does not include consultants. Change the tier first.",
+      "alreadyAssigned": "This consultant is already assigned to the facility.",
+      "notAllowed": "This request has moved on; refresh the page.",
+      "kindRequired": "Choose the service you need."
     }
   }
 }

@@ -59,6 +59,17 @@ import {
   setLicenseNote,
 } from "@/modules/standards/service";
 import { runSnapshots } from "@/modules/dashboards/jobs";
+import { runStruggleSignals } from "@/modules/subscriptions/jobs";
+import {
+  actOnServiceRequest,
+  assignConsultant,
+  createServiceRequest,
+  getOpenOffer,
+  getSubscriptionOverview,
+  listServiceRequests,
+  setConsultant,
+  updateSubscription,
+} from "@/modules/subscriptions/service";
 import { getDashboard, getTrend } from "@/modules/dashboards/service";
 import {
   archiveCommittee,
@@ -96,6 +107,7 @@ import {
   listMemberships,
   listOpenInvitations,
   listUserMemberships,
+  loadAccessContext,
   renameFacility,
   revokeInvitation,
   updateFacilityProfile,
@@ -120,6 +132,9 @@ import {
 let a: Awaited<ReturnType<typeof makeTenant>>;
 let b: Awaited<ReturnType<typeof makeTenant>>;
 let aForged: AccessContext;
+let bConsultantId: string;
+let aConsultantEmail: string;
+let bRequestId: string;
 let bDepartmentId: string;
 let bInvitationId: string;
 let sharedFrameworkId: string;
@@ -257,6 +272,31 @@ beforeAll(async () => {
 
   // A compliance snapshot in each tenant.
   for (const t of [a, b]) await runSnapshots(t.tenant.id, new Date());
+
+  // Both tenants are Hybrid with a consultant on their facility, and have sent the platform a
+  // request.
+  const platformAdmin = await createUser(uniqueEmail("isolation-admin"));
+  const admin = { userId: platformAdmin.id, isPlatformAdmin: true };
+  const consultantEmail = uniqueEmail("isolation-consultant");
+  bConsultantId = (await createUser(consultantEmail)).id;
+  await setConsultant(admin, consultantEmail, true);
+  for (const t of [a, b]) {
+    await updateSubscription(admin, t.tenant.id, {
+      tier: "hybrid",
+      startsOn: "2026-01-01",
+      endsOn: null,
+    });
+    const requestId = await createServiceRequest(t.ctx, t.facility.id, {
+      kind: "consultation",
+      note: "Isolation request",
+    });
+    if (t === b) bRequestId = requestId;
+  }
+  await assignConsultant(admin, b.tenant.id, b.facility.id, bConsultantId);
+  aConsultantEmail = uniqueEmail("isolation-consultant-a");
+  const aConsultantId = (await createUser(aConsultantEmail)).id;
+  await setConsultant(admin, aConsultantEmail, true);
+  await assignConsultant(admin, a.tenant.id, a.facility.id, aConsultantId);
 });
 
 afterAll(disconnectDb);
@@ -560,6 +600,23 @@ describe("service layer with a fooled permission check", () => {
     expect(bTrend!.points).toHaveLength(1);
   });
 
+  it("cannot read or answer another tenant's service requests or see its consultants", async () => {
+    expect(await listServiceRequests(aForged, b.facility.id)).toEqual([]);
+    expect(await getOpenOffer(aForged, b.facility.id)).toBeNull();
+    await expect(actOnServiceRequest(aForged, bRequestId, "cancel")).rejects.toThrow("notFound");
+    await expect(
+      createServiceRequest(aForged, b.facility.id, { kind: "consultation", note: "" }),
+    ).rejects.toThrow();
+    const overview = await getSubscriptionOverview(aForged, b.facility.id);
+    expect(overview?.consultants ?? []).toEqual([]);
+    // A's consultant lookup and struggle job never reach B.
+    expect(await loadAccessContext(bConsultantId, a.tenant.id)).toBeNull();
+    await runStruggleSignals(a.tenant.id, new Date());
+    expect((await listServiceRequests(b.ctx, b.facility.id))?.map((r) => r.id)).toEqual([
+      bRequestId,
+    ]);
+  });
+
   it("sees only its own subscription and audit trail", async () => {
     expect((await getSubscription(a.ctx))?.tenantId).toBe(a.tenant.id);
     const events = await listAuditEvents(a.ctx);
@@ -601,6 +658,8 @@ describe("database layer (RLS) on its own", () => {
     committee_element: "tenant_id",
     meeting: "tenant_id",
     compliance_snapshot: "tenant_id",
+    consultant_assignment: "tenant_id",
+    service_request: "tenant_id",
   };
 
   it.each(Object.entries(tenantColumn))(
@@ -620,12 +679,14 @@ describe("database layer (RLS) on its own", () => {
     },
   );
 
-  it("shows other tenants' users only through a shared membership", async () => {
-    const emails = await withTenant(
+  it("shows users only through a membership or consultant assignment in the tenant", async () => {
+    const rows = await withTenant(
       a.ctx,
-      (tx) => tx.$queryRaw<{ email: string }[]>`SELECT email FROM app_user`,
+      (tx) => tx.$queryRaw<{ id: string; email: string }[]>`SELECT id, email FROM app_user`,
     );
-    expect(emails.map((row) => row.email)).toEqual([a.owner.email]);
+    // A's owner and A's consultant; never B's consultant.
+    expect(rows.map((row) => row.email).sort()).toEqual([a.owner.email, aConsultantEmail].sort());
+    expect(rows.some((row) => row.id === bConsultantId)).toBe(false);
   });
 
   it("rejects inserting a row tagged with another tenant", async () => {

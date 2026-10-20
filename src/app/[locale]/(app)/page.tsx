@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { requireAppContext } from "@/lib/session";
 import { getDashboard, getTrend } from "@/modules/dashboards/service";
+import { getOpenOffer } from "@/modules/subscriptions/service";
 import {
   ExpiredEvidence,
   FacilityTiles,
@@ -40,10 +41,12 @@ export default async function DashboardPage({ params }: PageProps<"/[locale]">) 
  */
 async function Overview({ locale }: { locale: Locale }) {
   const t = await getTranslations({ locale, namespace: "dashboard" });
+  const ts = await getTranslations({ locale, namespace: "subscriptions" });
   const ctx = await requireAppContext(locale);
-  const [dashboard, trends] = await Promise.all([
+  const [dashboard, trends, offer] = await Promise.all([
     getDashboard(ctx.access, ctx.facilityId),
     getTrend(ctx.access, ctx.facilityId),
+    getOpenOffer(ctx.access, ctx.facilityId),
   ]);
   const anyScored = dashboard?.frameworks.some(
     (f) => (f.overview?.facility.scored ?? 0) > 0 || f.departments.some((d) => d.scored > 0),
@@ -55,6 +58,22 @@ async function Overview({ locale }: { locale: Locale }) {
         <p className="text-muted-foreground text-sm" data-testid="department-scope">
           {t("departmentScope")}
         </p>
+      )}
+      {offer && (
+        <Card className="border-warning/50 flex flex-col gap-3 border-s-4" data-testid="help-offer">
+          <CardTitle>{t("offer.title")}</CardTitle>
+          <CardDescription>{t("offer.body")}</CardDescription>
+          <ul className="list-disc ps-5 text-sm">
+            {offer.signalReasons.map((reason) => (
+              <li key={reason}>{ts(`reasons.${reason as "esrNotMet"}`)}</li>
+            ))}
+          </ul>
+          <div>
+            <Button asChild>
+              <Link href="/requests">{t("offer.cta")}</Link>
+            </Button>
+          </div>
+        </Card>
       )}
       {!anyScored && (
         <Card>

@@ -7,7 +7,8 @@ import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { requirePlatformAdmin } from "@/lib/session";
 
-// Platform administration: the library every tenant reads. Separate from the tenant app
+// Platform administration: the library every tenant reads, tenants' tiers, consultants and
+// the service-request queue. Separate from the tenant app
 // because the platform admin acts for no facility and has no default access to tenant data.
 export default function PlatformLayout({ children, params }: LayoutProps<"/[locale]/platform">) {
   return (
@@ -48,6 +49,20 @@ async function PlatformFrame({
           <SignOutButton userName={user.name} />
         </div>
       </header>
+      <nav
+        aria-label={t("platform.nav.label")}
+        className="border-border flex flex-wrap gap-x-5 gap-y-2 border-b px-4 py-3 text-sm"
+      >
+        {(["standards", "tenants", "consultants", "requests"] as const).map((key) => (
+          <Link
+            key={key}
+            href={`/platform/${key}`}
+            className="text-primary font-medium hover:underline"
+          >
+            {t(`platform.nav.${key}`)}
+          </Link>
+        ))}
+      </nav>
       <main id="main" className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
         {children}
       </main>

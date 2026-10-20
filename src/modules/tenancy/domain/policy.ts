@@ -7,6 +7,7 @@ export const actions = [
   "facility.updateSettings",
   "membership.manage",
   "subscription.view",
+  "service.request",
   "assessment.score",
   "tracer.run",
   "tracer.manage",
@@ -32,7 +33,7 @@ export type Actor = {
     departmentId: string | null;
     role: MembershipRole;
   }[];
-  // Facilities with an active consultant assignment on a Hybrid tenant (resolved in M14).
+  // Facilities with a live consultant assignment on a tenant that is Hybrid today.
   consultantFacilityIds: readonly string[];
 };
 
@@ -59,6 +60,7 @@ export const policyMatrix: Record<PolicyRole, Partial<Record<Action, Scope>>> = 
     "facility.updateSettings": "facility",
     "membership.manage": "facility",
     "subscription.view": "facility",
+    "service.request": "facility",
     "assessment.score": "facility",
     "tracer.run": "facility",
     "tracer.manage": "facility",
@@ -72,6 +74,8 @@ export const policyMatrix: Record<PolicyRole, Partial<Record<Action, Scope>>> = 
   },
   quality_manager: {
     "membership.manage": "facility",
+    // Asking the platform team for help is part of running the quality programme.
+    "service.request": "facility",
     "assessment.score": "facility",
     "tracer.run": "facility",
     "tracer.manage": "facility",

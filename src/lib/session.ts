@@ -9,7 +9,12 @@ import {
   mfaRequired,
   type UserProfile,
 } from "@/modules/identity/service";
-import { listUserMemberships, type AccessContext } from "@/modules/tenancy/service";
+import {
+  accessContextFor,
+  listConsultantFacilities,
+  listUserMemberships,
+  type AccessContext,
+} from "@/modules/tenancy/service";
 import { auth } from "./auth";
 
 // Request-level helpers for pages and server actions: who is signed in, and in which
@@ -57,15 +62,21 @@ export type AppContext = {
  */
 export const requireAppContext = cache(async (locale: Locale): Promise<AppContext> => {
   const user = await requireUser(locale);
-  const memberships = await listUserMemberships(user.id);
-  if (memberships.length === 0) return redirect({ href: "/setup", locale });
+  const [memberships, consulting] = await Promise.all([
+    listUserMemberships(user.id),
+    // Only consultant accounts can hold assignments; skip the lookup for everyone else.
+    user.isPlatformConsultant ? listConsultantFacilities(user.id) : Promise.resolve([]),
+  ]);
+  if (memberships.length === 0 && consulting.length === 0) {
+    return redirect({ href: "/setup", locale });
+  }
   if (!user.twoFactorEnabled && (await mfaRequired(user))) {
     return redirect({ href: "/mfa", locale });
   }
 
   const facilities = [
     ...new Map(
-      memberships.map((m) => [
+      [...memberships, ...consulting].map((m) => [
         m.facilityId,
         {
           tenantId: m.tenantId,
@@ -76,27 +87,16 @@ export const requireAppContext = cache(async (locale: Locale): Promise<AppContex
       ]),
     ).values(),
   ];
+  // A facility the user can no longer reach (assignment ended, tier lapsed) is never chosen,
+  // whatever the cookie says.
   const chosen = (await cookies()).get(ACTIVE_FACILITY_COOKIE)?.value;
   const active = facilities.find((f) => f.facilityId === chosen) ?? facilities[0]!;
-  const inTenant = memberships.filter((m) => m.tenantId === active.tenantId);
 
   return {
     user,
     facilityId: active.facilityId,
     facilities,
-    access: {
-      tenantId: active.tenantId,
-      userId: user.id,
-      actor: {
-        userId: user.id,
-        memberships: inTenant.map(({ facilityId, departmentId, role }) => ({
-          facilityId,
-          departmentId,
-          role,
-        })),
-        consultantFacilityIds: [],
-      },
-    },
+    access: accessContextFor(user.id, active.tenantId, memberships, consulting)!,
   };
 });
 
