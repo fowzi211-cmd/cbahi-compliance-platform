@@ -2,8 +2,12 @@
 // Row-Level Security policy (added in the migration SQL, since Prisma cannot express it).
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  // Load `include`d relations in the same SQL statement. Without it Prisma fetches sibling
+  // relations as separate queries in parallel, which inside a transaction (one connection)
+  // trips pg's "client is already executing a query" warning, and pg 9 will reject it.
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {
