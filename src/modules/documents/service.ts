@@ -25,6 +25,7 @@ import {
   type VersionStatus,
 } from "./domain/lifecycle";
 import { scanForPhi, type PhiHit } from "./domain/phi-scan";
+import { daysFrom as daysBetween, expiryWarningDays } from "./domain/reminders";
 import { extractText } from "./extract-text";
 import * as repo from "./repo";
 
@@ -584,6 +585,42 @@ export async function listCitableVersions(
       elementIds: v.document.elements.map((e) => e.elementId),
     }));
 }
+
+/**
+ * Approved documents that need attention on the dashboard: in force but expiring within the
+ * warning window, already expired (no longer citable), or due for review. Soonest first.
+ */
+export async function getDocumentAlerts(ctx: AccessContext, facilityId: string, now = new Date()) {
+  if (!isFacilityMember(ctx, facilityId)) return { expiring: [], expired: [], reviewDue: 0 };
+  const today = toRiyadhDay(now);
+  const rows = await withTenant(ctx, (tx) =>
+    repo.listApprovedVersions(tx, ctx.tenantId, facilityId),
+  );
+  const expiring = [];
+  const expired = [];
+  let reviewDue = 0;
+  for (const v of rows) {
+    const dates = { reviewOn: toDay(v.reviewOn), expiresOn: toDay(v.expiresOn) };
+    const state = versionState({ status: v.status, ...dates }, today);
+    const item = {
+      documentId: v.document.id,
+      versionId: v.id,
+      version: v.version,
+      titleAr: v.document.titleAr,
+      titleEn: v.document.titleEn,
+      expiresOn: dates.expiresOn!,
+    };
+    if (state === "expired") expired.push(item);
+    else if (dates.expiresOn && daysBetween(today, dates.expiresOn) <= expiryWarningDays) {
+      expiring.push(item);
+    }
+    if (state === "reviewDue") reviewDue += 1;
+  }
+  const byDate = (a: { expiresOn: string }, b: { expiresOn: string }) =>
+    a.expiresOn.localeCompare(b.expiresOn);
+  return { expiring: expiring.sort(byDate), expired: expired.sort(byDate), reviewDue };
+}
+export type DocumentAlerts = Awaited<ReturnType<typeof getDocumentAlerts>>;
 
 /** One citable version of the facility, or null (not approved, expired, retired, elsewhere). */
 export async function findCitableVersion(

@@ -1,3 +1,4 @@
+import { runSnapshots } from "@/modules/dashboards/jobs";
 import { runDocumentReminders } from "@/modules/documents/jobs";
 import { runCapaEscalation } from "@/modules/findings/jobs";
 import { deliverImmediate, sendDigests } from "@/modules/notifications/jobs";
@@ -7,7 +8,7 @@ import { listTenantIds } from "@/modules/tenancy/service";
 // tenant list is read across tenants. One tenant's failure is logged and does not stop the
 // others. `now` comes from the caller, so a test or `pnpm jobs:run --now` can fake the clock.
 
-export const jobNames = ["reminders", "deliver", "digest"] as const;
+export const jobNames = ["reminders", "deliver", "digest", "snapshots"] as const;
 export type JobName = (typeof jobNames)[number];
 
 const perTenant: Record<JobName, (tenantId: string, now: Date) => Promise<unknown>> = {
@@ -20,6 +21,8 @@ const perTenant: Record<JobName, (tenantId: string, now: Date) => Promise<unknow
   deliver: deliverImmediate,
   // Daily, after the reminders: everything else in one email per person.
   digest: sendDigests,
+  // Nightly, just before the Riyadh day ends: the day's compliance snapshot for the trend.
+  snapshots: runSnapshots,
 };
 
 export async function runJob(name: JobName, now: Date) {

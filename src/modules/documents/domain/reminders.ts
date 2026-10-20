@@ -7,7 +7,8 @@ export const expiryWarningDays = 30;
 
 export type DocumentReminderKind = "reviewDue" | "expiring" | "expired";
 
-const daysFrom = (from: string, to: string) =>
+/** Whole days from one calendar day to another (negative when `to` is earlier). */
+export const daysFrom = (from: string, to: string) =>
   Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 
 /**

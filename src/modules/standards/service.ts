@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
-import { withSystem, withTenant, type Tx } from "@/lib/db";
+import { withSystem, withTenant, type TenantContext, type Tx } from "@/lib/db";
 import { DomainError, ForbiddenError } from "@/lib/errors";
 import { recordAudit, recordPlatformAudit } from "@/modules/audit/service";
 import { allowed, getFacility, type AccessContext } from "@/modules/tenancy/service";
@@ -440,6 +440,11 @@ export async function listCatalogues(ctx: AccessContext) {
 }
 
 /** The editions a facility is assessed against. Empty when the caller is not a member. */
+/** The editions a facility uses, inside the caller's transaction (see `loadScoringContent`). */
+export async function listFacilityFrameworksIn(tx: Tx, ctx: TenantContext, facilityId: string) {
+  return (await repo.listFacilityFrameworks(tx, ctx.tenantId, facilityId)).map((f) => f.framework);
+}
+
 export async function listFacilityFrameworks(ctx: AccessContext, facilityId: string) {
   if (!(await getFacility(ctx, facilityId))) return [];
   return withTenant(ctx, async (tx) =>
@@ -654,49 +659,62 @@ export async function getScoringContent(
   if (!z.uuid().safeParse(frameworkId).success) return null;
   const facility = await getFacility(ctx, facilityId);
   if (!facility) return null;
-  return withTenant(ctx, async (tx) => {
-    const chosen = await repo.listFacilityFrameworks(tx, ctx.tenantId, facilityId);
-    if (!chosen.some((c) => c.frameworkId === frameworkId)) return null;
-    const [content, overrides] = await Promise.all([
-      repo.listScoringContent(tx, frameworkId),
-      repo.listApplicabilityOverrides(tx, ctx.tenantId, facilityId),
-    ]);
-    if (!content) return null;
-    const byElement = new Map(overrides.map((o) => [o.elementId, o]));
-    const config = rollupConfigSchema.parse(content.framework.rollupConfig);
-    return {
-      framework: {
-        id: content.framework.id,
-        code: content.framework.code,
-        edition: content.framework.edition,
-        nameAr: content.framework.nameAr,
-        nameEn: content.framework.nameEn,
-        status: content.framework.status,
-      },
-      rollupConfig: config,
-      scale: content.scale.map((l) => ({
-        id: l.id,
-        code: l.code,
-        labelAr: l.labelAr,
-        labelEn: l.labelEn,
-        value: Number(l.value),
-        countsInDenominator: l.countsInDenominator,
-        requiresEvidence: l.requiresEvidence,
-        generatesFinding: l.generatesFinding,
-      })),
-      chapters: content.chapters,
-      standards: content.standards.map((s) => ({ ...s, weight: Number(s.weight) })),
-      elements: content.elements.map((e) => {
-        const override = byElement.get(e.id);
-        return {
-          ...e,
-          weight: Number(e.weight),
-          applicable: resolveApplicability(e, facility.type, override ?? null).applicable,
-        };
-      }),
-    };
-  });
+  return withTenant(ctx, (tx) => loadScoringContent(tx, ctx, facility, frameworkId));
 }
+
+/**
+ * `getScoringContent` inside the caller's transaction, for work that acts for the tenant
+ * rather than for a person (the nightly snapshot) or that already checked the caller.
+ */
+export async function loadScoringContent(
+  tx: Tx,
+  ctx: TenantContext,
+  facility: { id: string; type: string },
+  frameworkId: string,
+) {
+  const facilityId = facility.id;
+  const chosen = await repo.listFacilityFrameworks(tx, ctx.tenantId, facilityId);
+  if (!chosen.some((c) => c.frameworkId === frameworkId)) return null;
+  const [content, overrides] = await Promise.all([
+    repo.listScoringContent(tx, frameworkId),
+    repo.listApplicabilityOverrides(tx, ctx.tenantId, facilityId),
+  ]);
+  if (!content) return null;
+  const byElement = new Map(overrides.map((o) => [o.elementId, o]));
+  const config = rollupConfigSchema.parse(content.framework.rollupConfig);
+  return {
+    framework: {
+      id: content.framework.id,
+      code: content.framework.code,
+      edition: content.framework.edition,
+      nameAr: content.framework.nameAr,
+      nameEn: content.framework.nameEn,
+      status: content.framework.status,
+    },
+    rollupConfig: config,
+    scale: content.scale.map((l) => ({
+      id: l.id,
+      code: l.code,
+      labelAr: l.labelAr,
+      labelEn: l.labelEn,
+      value: Number(l.value),
+      countsInDenominator: l.countsInDenominator,
+      requiresEvidence: l.requiresEvidence,
+      generatesFinding: l.generatesFinding,
+    })),
+    chapters: content.chapters,
+    standards: content.standards.map((s) => ({ ...s, weight: Number(s.weight) })),
+    elements: content.elements.map((e) => {
+      const override = byElement.get(e.id);
+      return {
+        ...e,
+        weight: Number(e.weight),
+        applicable: resolveApplicability(e, facility.type, override ?? null).applicable,
+      };
+    }),
+  };
+}
+
 export type ScoringContent = NonNullable<Awaited<ReturnType<typeof getScoringContent>>>;
 
 /** The elements of every edition the facility uses, for pickers (e.g. linking a document). */

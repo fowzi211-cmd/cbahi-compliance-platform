@@ -16,6 +16,9 @@
   --success: #17703a;
   --warning: #8a5300;
   --danger: #b42318;
+  /* Trend series, validated for colour-blind separation against the card surface. */
+  --chart-internal: #008a73;
+  --chart-consultant: #7347d1;
   --app-font: "IBM Plex Sans Arabic", "Inter Variable", system-ui, sans-serif;
 }
 
@@ -38,6 +41,8 @@
     --success: #5fd08a;
     --warning: #f2b45a;
     --danger: #ff8a80;
+    --chart-internal: #22a68f;
+    --chart-consultant: #9677ef;
   }
 }
 
@@ -54,6 +59,8 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
+  --color-chart-internal: var(--chart-internal);
+  --color-chart-consultant: var(--chart-consultant);
   --font-sans: var(--app-font);
 }
 

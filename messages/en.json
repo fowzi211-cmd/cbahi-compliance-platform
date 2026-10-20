@@ -29,13 +29,14 @@
   },
   "dashboard": {
     "title": "Readiness dashboard",
-    "intro": "Compliance and the state of essential safety requirements (ESR), from your facility's current scores.",
+    "intro": "Where your facility stands today: compliance by chapter and department, essential safety requirements (ESR), what needs attention, and the trend over time.",
     "emptyTitle": "No data yet",
     "emptyBody": "Set up your facility, then run a first self-assessment to see results here.",
     "setupTitle": "Finish setting up your facility",
     "setupBody": "Steps done: {done} of {total}. Once setup is done, the elements that apply to your facility show up here.",
     "setupCta": "Continue setup",
     "readiness": {
+      "title": "Readiness",
       "status": {
         "not_ready": "Not ready",
         "at_risk": "At risk",
@@ -43,11 +44,90 @@
       },
       "noScore": "No score yet",
       "coverage": "Elements with a current score: {scored} of {counted}",
-      "esrNotMet": "ESR elements not met: {count}",
-      "esrUnverified": "ESR elements not verified: {count}",
       "expired": "Expired scores: {count}",
       "cta": "Self-assessment",
-      "overdueCapa": "Overdue corrective actions: {count}"
+      "consultant": "Consultant score: {score} ({status})"
+    },
+    "departmentScope": "You see the scores of your own departments. Facility readiness is shown to the facility's managers.",
+    "banner": {
+      "title": "Not ready for survey",
+      "reasons": {
+        "esrNotMet": "At least one ESR element is not met.",
+        "esrUnverified": "At least one ESR element has no current score.",
+        "scoreBelowThreshold": "The overall score is below the readiness threshold.",
+        "nothingToScore": "Nothing has been scored yet.",
+        "overdueCapa": "Too many corrective actions are overdue."
+      }
+    },
+    "esr": {
+      "title": "Essential safety requirements (ESR)",
+      "summary": "ESR elements met: {met} of {total}",
+      "none": "This edition has no ESR elements that apply to your facility.",
+      "states": {
+        "met": "Met",
+        "notMet": "Not met",
+        "unverified": "Not verified"
+      }
+    },
+    "chapters": {
+      "title": "Compliance by chapter"
+    },
+    "departments": {
+      "title": "Compliance by department",
+      "empty": "No department has elements in this edition yet."
+    },
+    "unverified": {
+      "title": "Elements to verify",
+      "intro": "These elements have no current score. ESR elements are listed first.",
+      "none": "Every applicable element has a current score.",
+      "esr": "ESR",
+      "states": {
+        "expired": "Score expired",
+        "never": "Never scored"
+      },
+      "more": "Elements not shown: {count}"
+    },
+    "trend": {
+      "title": "Compliance over time",
+      "internal": "Internal",
+      "consultant": "Consultant",
+      "threshold": "Ready at {score}",
+      "chart": "Compliance trend over the last {days} recorded days",
+      "empty": "The trend starts after the first nightly snapshot.",
+      "table": "Show as a table",
+      "day": "Day"
+    },
+    "capa": {
+      "title": "Corrective actions",
+      "active": "Open corrective actions",
+      "overdue": "Overdue: {count}",
+      "cta": "Findings and CAPA"
+    },
+    "documents": {
+      "title": "Documents",
+      "expiring": "Expiring within 30 days: {count}",
+      "expired": "Expired: {count}",
+      "reviewDue": "Due for review: {count}",
+      "cta": "Documents"
+    },
+    "survey": {
+      "title": "Next survey",
+      "states": {
+        "unknown": "No date",
+        "later": "On track",
+        "soon": "Coming up",
+        "imminent": "Imminent",
+        "passed": "Date passed"
+      },
+      "on": "Expected on {date} ({days, plural, =0 {due today} one {# day left} other {# days left}})",
+      "passed": "The expected date ({date}) has passed. Update the survey cycle.",
+      "unknown": "No expected survey date is recorded.",
+      "cta": "Update the survey cycle"
+    },
+    "expiredEvidence": {
+      "title": "Scores relying on expired documents",
+      "intro": "These scores are still in force, but the document they cite has expired. A surveyor will ask for the current one.",
+      "document": "{title}, expired {date}"
     }
   },
   "notFound": {

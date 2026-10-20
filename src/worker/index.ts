@@ -7,12 +7,14 @@ import { jobNames, runJob, type JobName } from "./run";
 // `pnpm worker`: the background process (ARCHITECTURE §2, deployment shape). pg-boss keeps
 // its queue in Postgres (schema `pgboss`, owned by the system role), so there is no Redis.
 // Schedules are in Riyadh time: reminders at 06:00, the digest at 07:00 so it carries the
-// morning's reminders, and the email sweep every minute.
+// morning's reminders, the email sweep every minute, and the compliance snapshot at 23:50 so
+// it records the day it is named after.
 
 const schedules: Record<JobName, string> = {
   reminders: "0 6 * * *",
   digest: "0 7 * * *",
   deliver: "* * * * *",
+  snapshots: "50 23 * * *",
 };
 
 async function main() {

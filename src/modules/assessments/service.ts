@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { withTenant, type Tx } from "@/lib/db";
+import { withTenant, type TenantContext, type Tx } from "@/lib/db";
 import { DomainError, ForbiddenError } from "@/lib/errors";
 import { recordAudit } from "@/modules/audit/service";
 import { findCitableVersion } from "@/modules/documents/service";
 import {
-  countOverdueCapa,
+  capaCountsIn,
   listFindings,
   raiseFindings,
   verifyFindings,
@@ -12,12 +12,15 @@ import {
 import {
   getScoringContent,
   listFacilityFrameworks,
+  listFacilityFrameworksIn,
+  loadScoringContent,
   type ScoringContent,
 } from "@/modules/standards/service";
 import {
   allowed,
   getFacility,
   listDepartments,
+  listDepartmentsIn,
   type AccessContext,
   type Action,
   type Resource,
@@ -31,6 +34,7 @@ import {
   unscoredElements,
   type AssessmentKind,
 } from "./domain/assessment";
+import { complianceBreakdown } from "./domain/compliance";
 import { elementScoreProblems } from "./domain/element-score";
 import {
   elementState,
@@ -41,12 +45,13 @@ import { defaultScoreValidityDays } from "./domain/expiry";
 import { defaultReadinessSettings } from "./domain/readiness";
 import { computeRollup, rollupSettingsFrom } from "./domain/rollup";
 import { findLevel, normalizedValue } from "./domain/scale";
-import { evaluateFacility } from "./domain/scoring";
 import * as repo from "./repo";
 
 export { evidenceKinds, evidenceLimits } from "./domain/assessment";
 export type { AssessmentKind, AssessmentStatus, EvidenceKind } from "./domain/assessment";
 export type { ReadinessReason, ReadinessStatus } from "./domain/readiness";
+/** The score at which a facility counts as ready, drawn on the trend chart. */
+export const readyScore = defaultReadinessSettings.readyScore;
 
 export type AssessmentError =
   | "notFound"
@@ -721,48 +726,107 @@ function toStatusRecord(row: Awaited<ReturnType<typeof repo.listStatuses>>[numbe
 /**
  * The facility's readiness against each edition it uses, from the internal series as of
  * `now`: current levels, roll-up, then the ESR and threshold rules, with the facility's
- * overdue CAPA items.
+ * overdue CAPA items. The same evaluation the dashboard and the nightly snapshot use.
  */
 export async function getReadiness(ctx: AccessContext, facilityId: string, now = new Date()) {
   if (!allowed(ctx, "dashboard.view", { facilityId })) return [];
-  const frameworks = await listFacilityFrameworks(ctx, facilityId);
-  if (frameworks.length === 0) return [];
-  const statuses = (
-    await withTenant(ctx, (tx) => repo.listStatuses(tx, ctx.tenantId, facilityId))
-  ).map(toStatusRecord);
-  const overdueCapa = await countOverdueCapa(ctx, facilityId, now);
+  const facility = await getFacility(ctx, facilityId);
+  if (!facility) return [];
+  const results = await withTenant(ctx, (tx) => evaluateCompliance(tx, ctx, facility, now));
+  return results.map((r) => ({
+    framework: r.framework,
+    status: r.internal.status,
+    reasons: r.internal.reasons,
+    score: r.internal.facility.score,
+    counted: r.internal.facility.counted,
+    scored: r.internal.facility.scored,
+    esrNotMet: r.internal.facility.esrNotMet,
+    esrUnverified: r.internal.facility.esrUnverified,
+    overdueCapa: r.capa.overdue,
+    expired: r.internal.expired,
+  }));
+}
+export type FacilityReadiness = Awaited<ReturnType<typeof getReadiness>>[number];
 
+/**
+ * Compliance of one facility as of `now`, per edition it uses: the internal series (and the
+ * consultant series once a consultant has scored anything in that edition) broken down by
+ * chapter and department, with ESR and unverified elements, the CAPA counts and the labels
+ * a screen needs. Runs in the caller's transaction and checks no person's rights: the
+ * nightly snapshot calls it for the tenant, the dashboard after its own permission check.
+ */
+export async function evaluateCompliance(
+  tx: Tx,
+  ctx: TenantContext,
+  facility: { id: string; type: string },
+  now: Date,
+) {
+  const [frameworks, rows, departments, capa] = await Promise.all([
+    listFacilityFrameworksIn(tx, ctx, facility.id),
+    repo.listStatuses(tx, ctx.tenantId, facility.id),
+    listDepartmentsIn(tx, ctx, facility.id),
+    capaCountsIn(tx, ctx, facility.id, now),
+  ]);
+  const statuses = rows.map(toStatusRecord);
   const results = [];
   for (const framework of frameworks) {
-    const content = await getScoringContent(ctx, facilityId, framework.id);
+    const content = await loadScoringContent(tx, ctx, facility, framework.id);
     if (!content) continue;
     const ids = new Set(content.elements.map((e) => e.id));
     const own = statuses.filter((s) => ids.has(s.elementId));
-    const verdict = evaluateFacility({
+    const common = {
       content,
       scale: content.scale,
       rollup: rollupSettingsFrom(content.rollupConfig),
       esr: { anyNotMetBlocksReadiness: content.rollupConfig.esr.any_not_met_blocks_readiness },
       readiness: defaultReadinessSettings,
       statuses: own,
-      source: "internal",
-      overdueCapa,
+      overdueCapa: capa.overdue,
+      departments,
       now,
-    });
+    };
     results.push({
       framework: content.framework,
-      status: verdict.status,
-      reasons: verdict.reasons,
-      score: verdict.rollup.facility.score,
-      counted: verdict.rollup.facility.counted,
-      scored: verdict.rollup.facility.scored,
-      esrNotMet: verdict.rollup.facility.esrNotMet,
-      esrUnverified: verdict.rollup.facility.esrUnverified,
-      overdueCapa,
-      expired: own.filter((s) => s.source === "internal" && elementState(s, now) === "expired")
-        .length,
+      chapters: content.chapters.map((c) => ({
+        id: c.id,
+        code: c.code,
+        titleAr: c.titleAr,
+        titleEn: c.titleEn,
+      })),
+      elements: content.elements.map((e) => ({
+        id: e.id,
+        code: e.code,
+        titleAr: e.titleAr,
+        titleEn: e.titleEn,
+        isEsr: e.isEsr,
+      })),
+      departments,
+      internal: complianceBreakdown({ ...common, source: "internal" }),
+      consultant: own.some((s) => s.source === "consultant")
+        ? complianceBreakdown({ ...common, source: "consultant" })
+        : null,
+      capa,
     });
   }
   return results;
 }
-export type FacilityReadiness = Awaited<ReturnType<typeof getReadiness>>[number];
+export type FacilityCompliance = Awaited<ReturnType<typeof evaluateCompliance>>[number];
+
+/**
+ * The library versions cited by the scores now in force (internal series), element by
+ * element, so the dashboard can point at elements whose evidence has since expired.
+ */
+export async function listCurrentCitations(ctx: AccessContext, facilityId: string) {
+  if (!allowed(ctx, "dashboard.view", { facilityId })) return [];
+  return withTenant(ctx, async (tx) => {
+    const statuses = (await repo.listStatuses(tx, ctx.tenantId, facilityId)).filter(
+      (s) => s.source === "internal",
+    );
+    const elementOf = new Map(statuses.map((s) => [s.elementScoreId, s.elementId]));
+    const cited = await repo.listCitedVersions(tx, ctx.tenantId, [...elementOf.keys()]);
+    return cited.map((c) => ({
+      elementId: elementOf.get(c.elementScoreId)!,
+      versionId: c.documentVersionId,
+    }));
+  });
+}

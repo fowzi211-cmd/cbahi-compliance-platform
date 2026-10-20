@@ -255,6 +255,14 @@ erDiagram
 - `tracer_run (assessment_id, template_id, seed, candidates, sample_size)` records the draw: the 32-hex-digit seed and every candidate with its weight at that moment. A trigger refuses any change. The run screen re-draws from these and says whether it gives back the same sample.
 - All four new tables have `tenant_id`, composite foreign keys and the `tenant_isolation` RLS policy.
 
+**As built in M13** (differences from the diagram above):
+
+- `compliance_snapshot` holds **one row per facility, edition, day and series** (primary key `(facility_id, framework_id, day, series)`), not one row per chapter or department. The chapter and department breakdowns are `chapters` and `departments` jsonb arrays of `{id, score, counted, scored, esrNotMet, esrUnverified}` on that row. One row per day keeps the trend query to a single index range, and a breakdown always belongs to the same evaluation as its total.
+- The row also stores `status` (`not_ready | at_risk | ready`), `score` (0..1, null when nothing counts), `counted`, `scored`, `esr_not_met`, `esr_unverified`, `elements_expired` and `overdue_capa`, with CHECKs on the ranges.
+- **Frozen:** a trigger refuses any UPDATE, so a recorded day is never rewritten. The job inserts with `ON CONFLICT DO NOTHING`, so running it twice on a day adds nothing.
+- `day` is the Riyadh calendar day. The consultant series is written only once a consultant has scored something in that edition.
+- `tenant_id`, composite foreign keys and the `tenant_isolation` RLS policy, as for every tenant-owned table.
+
 ### 3.4 Documents, committees, notifications, audit
 
 ```mermaid
@@ -348,6 +356,15 @@ erDiagram
 - _Schedule._ Frequencies are monthly, quarterly, every six months and yearly. The next meeting is due one period after the last meeting held (calendar months, kept to the last day of a shorter month), or one period after the committee was formed if it has not met. It shows as due soon from 14 days before and overdue from the day after. Only meetings that took place are recorded: a date after today (Riyadh) is refused.
 - _Minutes as evidence._ Filing minutes creates a facility-wide `minutes` document through document control (attestation, PHI scan, approval), in force from the meeting day and linked to the overseen elements. Once approved, the minutes are a citable version for those elements under rule 8, offered first in the score form like any linked document. One set of minutes per meeting; a meeting with minutes cannot be deleted.
 - _Who._ `committee.manage` (owner and quality manager, facility-wide) creates, edits and dissolves committees, chooses the elements they oversee, records meetings and files minutes. Approving minutes follows `document.approve`. Every member of the facility can read committees and meetings. Meeting reminders are not built.
+
+**As built in M13** (`assessments/domain/compliance.ts`, `dashboards/domain/`, `dashboards/service.ts`, `dashboards/jobs.ts`):
+
+- _Breakdown._ `complianceBreakdown` evaluates one series of a facility as of `now` (rules 2 to 5) and adds per-chapter and per-department scores. A department is scored on exactly the elements a department self-assessment would cover (its type's elements), so the two never disagree; a department with no such elements has no score.
+- _Snapshot._ The `snapshots` job runs at 23:50 Riyadh time and records the day's internal series per facility and edition, plus the consultant series once there is one. Scores are rounded to 5 decimals.
+- _Overview._ Per edition: readiness with its reasons and a "Not ready" banner, the ESR elements not met or not verified, scores by chapter and department, and the elements without a current score (ESR first, the first 10 named and the rest counted). Facility-wide: open and overdue CAPA, documents expiring within 30 days, expired and due for review, the elements whose current score cites a document version that has since expired (rule 8, computed from dates), and the survey countdown.
+- _Survey countdown._ From the survey cycle's expected date: `soon` within 90 days, `imminent` within 30, `passed` once the date is behind (the cycle needs updating), `unknown` without a date.
+- _Trend._ The last 180 days of snapshots, internal and consultant on one percentage axis with the readiness threshold drawn. Time runs left to right in both languages. Values are also given as a table.
+- _Who._ Facility-wide `dashboard.view` (owner, quality manager, consultant, viewer) sees everything. A department head or staff member sees only the scores of their own departments: no facility readiness, trend or facility tiles, because readiness is a facility-level verdict.
 
 **As built in M8** (`documents/domain/`, `documents/service.ts`):
 
