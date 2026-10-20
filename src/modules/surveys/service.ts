@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { withTenant } from "@/lib/db";
+import { withTenant, type TenantContext, type Tx } from "@/lib/db";
 import { toRiyadhDay } from "@/lib/dates";
 import { DomainError, ForbiddenError } from "@/lib/errors";
 import { recordAudit } from "@/modules/audit/service";
@@ -50,6 +50,12 @@ export async function getSurveyCycle(
     notes: row.notes,
     updatedAt: row.updatedAt,
   };
+}
+
+/** The expected survey day inside the caller's transaction (jobs); null when none is set. */
+export async function nextExpectedSurveyIn(tx: Tx, ctx: TenantContext, facilityId: string) {
+  const row = await repo.findSurveyCycle(tx, ctx.tenantId, facilityId);
+  return toDay(row?.nextExpectedOn ?? null);
 }
 
 const optionalDay = z

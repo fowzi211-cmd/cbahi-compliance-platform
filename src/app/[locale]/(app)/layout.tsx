@@ -26,11 +26,11 @@ async function AppFrame({
 }) {
   const { locale } = await params;
   const ctx = await requireAppContext(locale as Locale);
-  const hiddenNav: NavKey[] = allowed(ctx.access, "membership.manage", {
-    facilityId: ctx.facilityId,
-  })
-    ? []
-    : ["people"];
+  const scope = { facilityId: ctx.facilityId };
+  const hiddenNav: NavKey[] = [
+    ...(allowed(ctx.access, "membership.manage", scope) ? [] : (["people"] as const)),
+    ...(allowed(ctx.access, "service.request", scope) ? [] : (["requests"] as const)),
+  ];
   const unreadNotifications = await countUnread(ctx.access);
 
   return (

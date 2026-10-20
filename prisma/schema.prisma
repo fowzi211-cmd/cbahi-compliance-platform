@@ -30,36 +30,38 @@ model Tenant {
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  subscription         Subscription?
-  facilities           Facility[]
-  departments          Department[]
-  memberships          Membership[]
-  invitations          Invitation[]
-  auditEvents          AuditEvent[]
-  facilityFrameworks   FacilityFramework[]
-  elementApplicability ElementApplicability[]
-  surveyCycles         SurveyCycle[]
-  assessments          Assessment[]
-  elementScores        ElementScore[]
-  scoreEvidence        ScoreEvidence[]
-  elementStatuses      ElementStatus[]
-  findings             Finding[]
-  documents            Document[]
-  documentVersions     DocumentVersion[]
-  documentApprovals    DocumentApproval[]
-  documentElements     DocumentElement[]
-  capaItems            CapaItem[]
-  capaEvidence         CapaEvidence[]
-  notifications        Notification[]
-  notificationPrefs    NotificationPreference[]
-  assessmentElements   AssessmentElement[]
-  tracerTemplates      TracerTemplate[]
-  tracerTemplateChaps  TracerTemplateChapter[]
-  tracerRuns           TracerRun[]
-  committees           Committee[]
-  committeeElements    CommitteeElement[]
-  meetings             Meeting[]
-  snapshots            ComplianceSnapshot[]
+  subscription          Subscription?
+  facilities            Facility[]
+  departments           Department[]
+  memberships           Membership[]
+  invitations           Invitation[]
+  auditEvents           AuditEvent[]
+  facilityFrameworks    FacilityFramework[]
+  elementApplicability  ElementApplicability[]
+  surveyCycles          SurveyCycle[]
+  assessments           Assessment[]
+  elementScores         ElementScore[]
+  scoreEvidence         ScoreEvidence[]
+  elementStatuses       ElementStatus[]
+  findings              Finding[]
+  documents             Document[]
+  documentVersions      DocumentVersion[]
+  documentApprovals     DocumentApproval[]
+  documentElements      DocumentElement[]
+  capaItems             CapaItem[]
+  capaEvidence          CapaEvidence[]
+  notifications         Notification[]
+  notificationPrefs     NotificationPreference[]
+  assessmentElements    AssessmentElement[]
+  tracerTemplates       TracerTemplate[]
+  tracerTemplateChaps   TracerTemplateChapter[]
+  tracerRuns            TracerRun[]
+  committees            Committee[]
+  committeeElements     CommitteeElement[]
+  meetings              Meeting[]
+  snapshots             ComplianceSnapshot[]
+  consultantAssignments ConsultantAssignment[]
+  serviceRequests       ServiceRequest[]
 
   @@map("tenant")
 }
@@ -114,6 +116,8 @@ model Facility {
   tracerTemplates TracerTemplate[]
   committees      Committee[]
   snapshots       ComplianceSnapshot[]
+  consultants     ConsultantAssignment[]
+  serviceRequests ServiceRequest[]
 
   @@unique([tenantId, id])
   @@index([tenantId])
@@ -166,10 +170,11 @@ model User {
   createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  memberships Membership[]
-  sessions    Session[]
-  accounts    Account[]
-  twoFactors  TwoFactor[]
+  memberships           Membership[]
+  sessions              Session[]
+  accounts              Account[]
+  twoFactors            TwoFactor[]
+  consultantAssignments ConsultantAssignment[]
 
   @@map("app_user")
 }
@@ -1212,4 +1217,74 @@ model ComplianceSnapshot {
   @@id([facilityId, frameworkId, day, series])
   @@index([tenantId, facilityId, day])
   @@map("compliance_snapshot")
+}
+
+// M14: a platform consultant's access to one facility of a Hybrid tenant. Written only by the
+// platform admin (system connection); ending an assignment keeps the row for the record.
+model ConsultantAssignment {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  facilityId String    @map("facility_id") @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  assignedBy String?   @map("assigned_by") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  endedAt    DateTime? @map("ended_at") @db.Timestamptz(6)
+  endedBy    String?   @map("ended_by") @db.Uuid
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facility Facility @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, facilityId])
+  @@index([userId])
+  @@map("consultant_assignment")
+}
+
+enum ServiceRequestKind {
+  mock_survey
+  consultation
+  gap_assessment
+}
+
+enum ServiceRequestStatus {
+  offered
+  open
+  in_progress
+  done
+  dismissed
+  cancelled
+}
+
+enum ServiceRequestOrigin {
+  user
+  struggle_signal
+}
+
+// M14: a request for help routed to the platform team. The struggle signal creates it as an
+// `offered` draft that the facility accepts or dismisses.
+model ServiceRequest {
+  id            String               @id @default(uuid(7)) @db.Uuid
+  tenantId      String               @map("tenant_id") @db.Uuid
+  facilityId    String               @map("facility_id") @db.Uuid
+  // Null only while an offer has not been accepted.
+  kind          ServiceRequestKind?
+  status        ServiceRequestStatus
+  origin        ServiceRequestOrigin
+  // Why the struggle signal fired: reason codes, never scores or element text.
+  signalReasons String[]             @default([]) @map("signal_reasons")
+  note          String?
+  requestedBy   String?              @map("requested_by") @db.Uuid
+  platformNote  String?              @map("platform_note")
+  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  submittedAt   DateTime?            @map("submitted_at") @db.Timestamptz(6)
+  closedAt      DateTime?            @map("closed_at") @db.Timestamptz(6)
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facility Facility @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, facilityId, createdAt])
+  @@index([status])
+  @@map("service_request")
 }

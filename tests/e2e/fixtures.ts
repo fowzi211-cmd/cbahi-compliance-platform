@@ -39,7 +39,15 @@ export type Owner = { email: string; secret: string };
  * Creates an account through the API, the organization through the setup screen, and turns
  * on TOTP through the API. The browser ends signed in as a facility owner on the dashboard.
  */
-export async function signUpOwner(page: Page, baseURL: string): Promise<Owner> {
+export async function signUpOwner(
+  page: Page,
+  baseURL: string,
+  names: { organization: string; facilityAr: string; facilityEn: string } = {
+    organization: "مجموعة النور التجريبية",
+    facilityAr: "عيادات النور التجريبية",
+    facilityEn: "Al-Noor Demo Clinics",
+  },
+): Promise<Owner> {
   const email = uniqueEmail("owner");
   const headers = { origin: baseURL };
   const signUp = await page.request.post("/api/auth/sign-up/email", {
@@ -49,9 +57,9 @@ export async function signUpOwner(page: Page, baseURL: string): Promise<Owner> {
   expect(signUp.ok()).toBe(true);
 
   await page.goto("/ar/setup");
-  await page.getByLabel("اسم المنظمة").fill("مجموعة النور التجريبية");
-  await page.getByLabel("اسم المنشأة بالعربية").fill("عيادات النور التجريبية");
-  await page.getByLabel("اسم المنشأة بالإنجليزية").fill("Al-Noor Demo Clinics");
+  await page.getByLabel("اسم المنظمة").fill(names.organization);
+  await page.getByLabel("اسم المنشأة بالعربية").fill(names.facilityAr);
+  await page.getByLabel("اسم المنشأة بالإنجليزية").fill(names.facilityEn);
   await page.getByRole("button", { name: "إنشاء المنظمة" }).click();
   await expect(page).toHaveURL(/\/ar\/mfa$/);
 

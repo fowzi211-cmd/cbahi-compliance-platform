@@ -187,6 +187,13 @@ erDiagram
 - Onboarding progress is two columns on `facility`: `onboarding_steps` (steps saved so far) and `onboarded_at` (set once, when the last open step is saved). The wizard is owner-only (`facility.updateSettings`) and always works on the active facility from the session. Settings links back to its steps.
 - Moving a facility to a newer framework edition (and carrying its decisions across) is deferred to the milestone that first needs it; a retired edition already chosen stays selected until then.
 
+**As built in M14** (differences from the diagram above):
+
+- `ConsultantAssignment` is tenant-owned (RLS, composite FK to the facility) with `assigned_by`, `created_at`, `ended_at` and `ended_by`. Ending keeps the row as history; a partial unique index allows one live assignment per consultant and facility. The app role cannot write it at all: only the platform admin assigns, through `withSystem`, and each change is audited in the tenant's chain.
+- `ServiceRequest` (`service_request`) is tenant-owned: `kind` (mock survey, consultation, gap assessment; empty on an offer until accepted), `status`, `origin` (`user` or `struggle_signal`), `signal_reasons`, the facility's `note`, the platform team's `platform_note`, and `submitted_at` / `closed_at`. DB CHECKs keep the lifecycle honest (an offer comes only from the signal, `closed_at` is set exactly for closed statuses, notes are at most 2000 characters). The app role cannot delete requests.
+- A consultant's facilities are found before the tenant is known by the `SECURITY DEFINER` lookup `app_consultant_facilities(user)`. It returns a facility only while the assignment is live, the user still holds `is_platform_consultant`, the facility is not archived and the tenant is on Hybrid within its term (Riyadh date). Access therefore stops by itself when the term lapses.
+- `app_user` gains a second read policy: a tenant also sees the consultants assigned to it, so the owner can see who has access.
+
 ### 3.3 Assessment, findings, CAPA
 
 ```mermaid
@@ -366,6 +373,13 @@ erDiagram
 - _Trend._ The last 180 days of snapshots, internal and consultant on one percentage axis with the readiness threshold drawn. Time runs left to right in both languages. Values are also given as a table.
 - _Who._ Facility-wide `dashboard.view` (owner, quality manager, consultant, viewer) sees everything. A department head or staff member sees only the scores of their own departments: no facility readiness, trend or facility tiles, because readiness is a facility-level verdict.
 
+**As built in M14** (`subscriptions/domain/`, `subscriptions/service.ts`, `subscriptions/jobs.ts`):
+
+- _Feature gates (rule 10)._ Features: consultant assignment, consultant mock surveys, gap assessment and the struggle signal. Hybrid enables the first three; Platform only the struggle signal (a Hybrid tenant already has a consultant). A Hybrid subscription outside its `starts_on`–`ends_on` term counts as Platform. A per-tenant override forces a feature on or off and wins over the matrix. Assigning a consultant to a tenant without the feature is refused.
+- _Struggle signal (rule 9)._ The `signals` job runs at 23:55 Riyadh for every tenant with the feature, per facility that has at least one framework edition. Reasons: an ESR element **not met** in any edition (not merely unverified, which the dashboard already flags), more than `maxOverdueCapa` (5) overdue CAPA items, or a survey expected within 90 days while the weakest edition scores below the readiness threshold (0.8). Any reason raises an `offered` request, unless one is still waiting for an answer or the last offer is under 14 days old. The offer shows on the dashboard and on the requests page; nothing is emailed.
+- _Service requests._ The facility creates a request (`open`) or accepts an offer, choosing its kind (`offered → open`), dismisses an offer (`offered → dismissed`), and can withdraw an open request until the platform starts it (`open → cancelled`). The platform team starts (`open → in_progress`), completes (`in_progress → done`) or cancels (`open|in_progress → cancelled`), optionally with a note the facility sees. Moves are guarded on the current status, so two people acting at once cannot both win. Every move is audited.
+- _Who._ `service.request` (owner and quality manager, facility-wide) asks and answers. The subscription and assigned consultants are shown to whoever has `subscription.view`. The platform admin manages tiers, the consultant flag (revoking it ends every live assignment) and assignments, and works the request queue; the admin sees tenant and facility names, subscriptions and requests, never compliance data. The admin flag itself stays CLI-only.
+
 **As built in M8** (`documents/domain/`, `documents/service.ts`):
 
 - _Document lifecycle (rule 8)._ An approved version is _current_, _due for review_ from its review date (still in force: review is a reminder), and _expired_ the day after its expiry date (a cut-off). Only a current or review-due version of a document that is not retired can be cited; an expired one is refused. Dates must run effective → review → expiry. A rejection needs a comment. Uploaders may approve their own version; the audit event records `selfApproved` so a reviewer can see it. Review and expiry reminders arrive with the notification jobs (M10): review-due and expiring-soon (30 days before expiry) go into the daily digest, and expiry is an immediate notice, to the document owner, quality managers and facility owners. Showing the elements whose cited document has expired moves to the M13 readiness view, which computes it from the dates rather than storing a flag.
@@ -397,6 +411,7 @@ erDiagram
 | Permission                             | Owner | Quality mgr | Dept head | Staff        | Consultant*   | Viewer |
 | -------------------------------------- | ----- | ----------- | --------- | ------------ | ------------- | ------ |
 | Facility settings, users, subscription | ✓     | users only  | –         | –            | –             | –      |
+| Service requests (ask the platform)    | ✓     | ✓           | –         | –            | –             | –      |
 | Self-assessment: score                 | ✓     | ✓           | own dept  | –            | –             | –      |
 | Tracer: run                            | ✓     | ✓           | own dept  | ✓ (assigned) | –             | –      |
 | Tracer: templates                      | ✓     | ✓           | own dept  | –            | –             | –      |
@@ -443,7 +458,7 @@ The policy lives in one place, `tenancy/domain/policy.ts`, as `can(ctx, action, 
 - **Types and priority.** `capaAssigned`, `capaOverdue` and `documentExpired` are immediate. `documentReviewDue` and `documentExpiring` go into the daily digest.
 - **Email.** Every minute, `deliver` claims pending immediate notices (`FOR UPDATE SKIP LOCKED`) and emails each one, unless the person turned immediate email off (it then waits for the digest) or turned all email off (skipped). At 07:00 Riyadh, `digest` sends each person one email listing all their still-pending notices. A notice already read in the app is not emailed. A send error is retried on later sweeps, up to 3 attempts, then marked `failed`.
 - **Jobs.** `reminders` runs at 06:00 Riyadh: document review and expiry reminders, then CAPA escalation. Each job reads the tenant list through the system role, then works tenant by tenant inside `withTenant`, so RLS still applies. One tenant's error does not stop the others.
-- **Worker.** `pnpm worker` runs pg-boss (schema `pgboss`, created by the migration because the system role cannot create schemas) with the three cron schedules. `pnpm jobs:run <job>... [--now ISO]` runs jobs once without the queue, for catching up after downtime and for tests with a fake clock.
+- **Worker.** `pnpm worker` runs pg-boss (schema `pgboss`, created by the migration because the system role cannot create schemas) with its cron schedules (M13 added `snapshots` at 23:50, M14 `signals` at 23:55). `pnpm jobs:run <job>... [--now ISO]` runs jobs once without the queue, for catching up after downtime and for tests with a fake clock.
 - **Channels.** In-app and email (SMTP via `lib/email`). `SmsChannel` and `WhatsAppChannel` are stubs that report "not configured"; no phone numbers are stored until a KSA provider and a PDPL basis for holding staff numbers are agreed.
 - **UI.** A bell in the header with the unread count, an inbox at `/notifications` (opening a notice marks it read), and per-person email preferences on the same page.
 

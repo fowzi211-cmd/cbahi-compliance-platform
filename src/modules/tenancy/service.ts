@@ -41,6 +41,7 @@ import {
 } from "./domain/onboarding";
 import { sendInvitationEmail } from "./invitation-email";
 import * as repo from "./repo";
+import type { ConsultantFacilityRow, UserMembershipRow } from "./repo";
 
 export type { Action, Actor, Resource } from "./domain/policy";
 export type { InvitationStatus } from "./domain/invitations";
@@ -80,25 +81,50 @@ export function listUserMemberships(userId: string) {
   return withoutTenant((tx) => repo.listUserMemberships(tx, userId));
 }
 
+/**
+ * The facilities a platform consultant may open, across tenants: live assignments on tenants
+ * that are Hybrid today. Keyed by the verified session's user, like memberships.
+ */
+export function listConsultantFacilities(userId: string) {
+  return withoutTenant((tx) => repo.listConsultantFacilities(tx, userId));
+}
+
 /** The access context for one tenant, or null when the user holds nothing there. */
 export async function loadAccessContext(
   userId: string,
   tenantId: string,
 ): Promise<AccessContext | null> {
-  const memberships = (await listUserMemberships(userId)).filter((m) => m.tenantId === tenantId);
-  if (memberships.length === 0) return null;
+  const [allMemberships, consulting] = await Promise.all([
+    listUserMemberships(userId),
+    listConsultantFacilities(userId),
+  ]);
+  return accessContextFor(userId, tenantId, allMemberships, consulting);
+}
+
+/**
+ * The access context in one tenant from what the lookups returned, or null when the user
+ * holds nothing there. Consultants get only the facilities of their live assignments.
+ */
+export function accessContextFor(
+  userId: string,
+  tenantId: string,
+  memberships: readonly UserMembershipRow[],
+  consulting: readonly ConsultantFacilityRow[],
+): AccessContext | null {
+  const own = memberships.filter((m) => m.tenantId === tenantId);
+  const assigned = consulting.filter((c) => c.tenantId === tenantId);
+  if (own.length === 0 && assigned.length === 0) return null;
   return {
     tenantId,
     userId,
     actor: {
       userId,
-      memberships: memberships.map(({ facilityId, departmentId, role }) => ({
+      memberships: own.map(({ facilityId, departmentId, role }) => ({
         facilityId,
         departmentId,
         role,
       })),
-      // Consultant assignments arrive with M14.
-      consultantFacilityIds: [],
+      consultantFacilityIds: assigned.map((c) => c.facilityId),
     },
   };
 }

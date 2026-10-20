@@ -134,6 +134,32 @@ export async function listUserMemberships(tx: Tx, userId: string): Promise<UserM
   }));
 }
 
+export type ConsultantFacilityRow = {
+  tenantId: string;
+  facilityId: string;
+  facilityNameAr: string;
+  facilityNameEn: string;
+};
+
+/**
+ * Before the tenant is known: the facilities a platform consultant may open (live assignment,
+ * tenant Hybrid today, consultant flag held). A SECURITY DEFINER lookup, like memberships.
+ */
+export async function listConsultantFacilities(
+  tx: Tx,
+  userId: string,
+): Promise<ConsultantFacilityRow[]> {
+  const rows = await tx.$queryRaw<
+    { tenant_id: string; facility_id: string; facility_name_ar: string; facility_name_en: string }[]
+  >`SELECT * FROM app_consultant_facilities(${userId}::uuid)`;
+  return rows.map((row) => ({
+    tenantId: row.tenant_id,
+    facilityId: row.facility_id,
+    facilityNameAr: row.facility_name_ar,
+    facilityNameEn: row.facility_name_en,
+  }));
+}
+
 export type InvitationLookupRow = {
   id: string;
   tenantId: string;
