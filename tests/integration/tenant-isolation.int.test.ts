@@ -58,6 +58,8 @@ import {
   setFacilityFrameworks,
   setLicenseNote,
 } from "@/modules/standards/service";
+import { runSnapshots } from "@/modules/dashboards/jobs";
+import { getDashboard, getTrend } from "@/modules/dashboards/service";
 import {
   archiveCommittee,
   createCommittee,
@@ -252,6 +254,9 @@ beforeAll(async () => {
     const bareId = await recordMeeting(t.ctx, committeeId, { heldOn: "2026-02-10" });
     if (t === b) [bCommitteeId, bMeetingId, bBareMeetingId] = [committeeId, meetingId, bareId];
   }
+
+  // A compliance snapshot in each tenant.
+  for (const t of [a, b]) await runSnapshots(t.tenant.id, new Date());
 });
 
 afterAll(disconnectDb);
@@ -546,6 +551,15 @@ describe("service layer with a fooled permission check", () => {
     ]);
   });
 
+  it("cannot read another tenant's dashboard or trend", async () => {
+    expect(await getDashboard(aForged, b.facility.id)).toBeNull();
+    expect(await getTrend(aForged, b.facility.id)).toEqual([]);
+    // A's snapshot job writes only A's rows, and B's trend is intact.
+    expect(await runSnapshots(a.tenant.id, new Date(Date.now() + 86_400_000))).toBeGreaterThan(0);
+    const [bTrend] = await getTrend(b.ctx, b.facility.id);
+    expect(bTrend!.points).toHaveLength(1);
+  });
+
   it("sees only its own subscription and audit trail", async () => {
     expect((await getSubscription(a.ctx))?.tenantId).toBe(a.tenant.id);
     const events = await listAuditEvents(a.ctx);
@@ -586,6 +600,7 @@ describe("database layer (RLS) on its own", () => {
     committee: "tenant_id",
     committee_element: "tenant_id",
     meeting: "tenant_id",
+    compliance_snapshot: "tenant_id",
   };
 
   it.each(Object.entries(tenantColumn))(

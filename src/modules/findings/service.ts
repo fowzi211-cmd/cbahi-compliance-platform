@@ -1,6 +1,6 @@
 import { uuidv7 } from "uuidv7";
 import { z } from "zod";
-import { withTenant, type Tx } from "@/lib/db";
+import { withTenant, type TenantContext, type Tx } from "@/lib/db";
 import { toRiyadhDay } from "@/lib/dates";
 import { DomainError, ForbiddenError } from "@/lib/errors";
 import { recordAudit } from "@/modules/audit/service";
@@ -244,10 +244,22 @@ export type MyCapaItem = Awaited<ReturnType<typeof listMyCapaItems>>[number];
  */
 export async function countOverdueCapa(ctx: AccessContext, facilityId: string, now = new Date()) {
   if (!allowed(ctx, "dashboard.view", { facilityId })) return 0;
+  return (await withTenant(ctx, (tx) => capaCountsIn(tx, ctx, facilityId, now))).overdue;
+}
+
+/**
+ * Active actions (open or in progress) in the facility and how many of them are overdue on
+ * `now`, inside the caller's transaction: the dashboard and the nightly snapshot.
+ */
+export async function capaCountsIn(tx: Tx, ctx: TenantContext, facilityId: string, now: Date) {
   const today = toRiyadhDay(now);
-  const rows = await withTenant(ctx, (tx) => repo.listActiveItems(tx, ctx.tenantId, facilityId));
-  return rows.filter((item) => isOverdue({ status: item.status, dueOn: toDay(item.dueOn) }, today))
-    .length;
+  const rows = await repo.listActiveItems(tx, ctx.tenantId, facilityId);
+  return {
+    active: rows.length,
+    overdue: rows.filter((item) =>
+      isOverdue({ status: item.status, dueOn: toDay(item.dueOn) }, today),
+    ).length,
+  };
 }
 
 /** Who can own an action: any member who can do work (viewers only read). */

@@ -59,6 +59,7 @@ model Tenant {
   committees           Committee[]
   committeeElements    CommitteeElement[]
   meetings             Meeting[]
+  snapshots            ComplianceSnapshot[]
 
   @@map("tenant")
 }
@@ -112,6 +113,7 @@ model Facility {
   notifications   Notification[]
   tracerTemplates TracerTemplate[]
   committees      Committee[]
+  snapshots       ComplianceSnapshot[]
 
   @@unique([tenantId, id])
   @@index([tenantId])
@@ -358,6 +360,7 @@ model Framework {
   facilities      FacilityFramework[]
   assessments     Assessment[]
   tracerTemplates TracerTemplate[]
+  snapshots       ComplianceSnapshot[]
 
   @@unique([code, edition])
   @@map("framework")
@@ -1167,4 +1170,46 @@ model Meeting {
   @@unique([tenantId, minutesDocumentId])
   @@index([tenantId, committeeId])
   @@map("meeting")
+}
+
+// ---------------------------------------------------------------------------
+// Compliance snapshots (M13). Tenant-owned: tenant_id, composite foreign keys and RLS. The
+// nightly job writes one row per facility, edition, day and series; a day once written is
+// never rewritten (trigger), so the trend shows what was true on each day.
+// ---------------------------------------------------------------------------
+
+enum ReadinessStatus {
+  not_ready
+  at_risk
+  ready
+}
+
+model ComplianceSnapshot {
+  tenantId        String          @map("tenant_id") @db.Uuid
+  facilityId      String          @map("facility_id") @db.Uuid
+  frameworkId     String          @map("framework_id") @db.Uuid
+  // The Riyadh day the snapshot describes.
+  day             DateTime        @db.Date
+  series          ScoreSource
+  status          ReadinessStatus
+  // Facility score 0..1; null when nothing counts.
+  score           Decimal?        @db.Decimal(6, 5)
+  counted         Int
+  scored          Int
+  esrNotMet       Int             @map("esr_not_met")
+  esrUnverified   Int             @map("esr_unverified")
+  elementsExpired Int             @map("elements_expired")
+  overdueCapa     Int             @map("overdue_capa")
+  // [{ chapterId, score, counted, scored }] and [{ departmentId, score, counted, scored }].
+  chapters        Json
+  departments     Json
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facility  Facility  @relation(fields: [tenantId, facilityId], references: [tenantId, id], onDelete: Cascade)
+  framework Framework @relation(fields: [frameworkId], references: [id], onDelete: Restrict)
+
+  @@id([facilityId, frameworkId, day, series])
+  @@index([tenantId, facilityId, day])
+  @@map("compliance_snapshot")
 }

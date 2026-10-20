@@ -5,8 +5,12 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { requireAppContext } from "@/lib/session";
-import { getReadiness } from "@/modules/assessments/service";
-import { ReadinessCards } from "@/modules/assessments/ui/ReadinessCards";
+import { getDashboard, getTrend } from "@/modules/dashboards/service";
+import {
+  ExpiredEvidence,
+  FacilityTiles,
+  FrameworkOverview,
+} from "@/modules/dashboards/ui/Overview";
 import { allowed, getOnboardingProgress, onboardingSteps } from "@/modules/tenancy/service";
 
 export default async function DashboardPage({ params }: PageProps<"/[locale]">) {
@@ -15,7 +19,7 @@ export default async function DashboardPage({ params }: PageProps<"/[locale]">) 
   const t = await getTranslations("dashboard");
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
+    <div className="mx-auto flex max-w-6xl flex-col gap-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold sm:text-3xl">{t("title")}</h1>
         <p className="text-muted-foreground max-w-prose">{t("intro")}</p>
@@ -24,33 +28,58 @@ export default async function DashboardPage({ params }: PageProps<"/[locale]">) 
         <SetupReminder locale={locale as Locale} />
       </Suspense>
       <Suspense>
-        <Readiness locale={locale as Locale} />
+        <Overview locale={locale as Locale} />
       </Suspense>
     </div>
   );
 }
 
-/** Readiness from the current internal scores, or a pointer to the first assessment. */
-async function Readiness({ locale }: { locale: Locale }) {
+/**
+ * The readiness overview (M13): per edition, readiness, ESR, breakdowns and the trend; then
+ * the facility-wide tiles. Department heads and staff see their own departments only.
+ */
+async function Overview({ locale }: { locale: Locale }) {
   const t = await getTranslations({ locale, namespace: "dashboard" });
   const ctx = await requireAppContext(locale);
-  const readiness = await getReadiness(ctx.access, ctx.facilityId);
-  const anyScored = readiness.some((r) => r.scored > 0);
+  const [dashboard, trends] = await Promise.all([
+    getDashboard(ctx.access, ctx.facilityId),
+    getTrend(ctx.access, ctx.facilityId),
+  ]);
+  const anyScored = dashboard?.frameworks.some(
+    (f) => (f.overview?.facility.scored ?? 0) > 0 || f.departments.some((d) => d.scored > 0),
+  );
 
   return (
     <>
-      {readiness.length > 0 && <ReadinessCards locale={locale} readiness={readiness} />}
+      {dashboard?.scope === "departments" && (
+        <p className="text-muted-foreground text-sm" data-testid="department-scope">
+          {t("departmentScope")}
+        </p>
+      )}
       {!anyScored && (
         <Card>
           <CardTitle>{t("emptyTitle")}</CardTitle>
           <CardDescription className="mt-2">{t("emptyBody")}</CardDescription>
         </Card>
       )}
-      <div>
-        <Button asChild variant="outline">
-          <Link href="/assessments">{t("readiness.cta")}</Link>
-        </Button>
-      </div>
+      {dashboard?.facilityWide && (
+        <FacilityTiles
+          locale={locale}
+          wide={dashboard.facilityWide}
+          canEditSurvey={allowed(ctx.access, "facility.updateSettings", {
+            facilityId: ctx.facilityId,
+          })}
+        />
+      )}
+      {dashboard?.frameworks.map((view) => (
+        <FrameworkOverview
+          key={view.framework.id}
+          locale={locale}
+          view={view}
+          trend={trends.find((x) => x.frameworkId === view.framework.id) ?? null}
+        />
+      ))}
+      {dashboard?.facilityWide && <ExpiredEvidence locale={locale} wide={dashboard.facilityWide} />}
     </>
   );
 }

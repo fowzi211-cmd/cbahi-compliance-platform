@@ -244,3 +244,15 @@ export function upsertStatus(
     update: status,
   });
 }
+
+/** Library versions cited as evidence by these scores. */
+export async function listCitedVersions(tx: Tx, tenantId: string, scoreIds: readonly string[]) {
+  const rows = await tx.scoreEvidence.findMany({
+    where: { tenantId, elementScoreId: { in: [...scoreIds] }, documentVersionId: { not: null } },
+    select: { elementScoreId: true, documentVersionId: true },
+  });
+  return rows.map((r) => ({
+    elementScoreId: r.elementScoreId,
+    documentVersionId: r.documentVersionId!,
+  }));
+}

@@ -455,6 +455,24 @@ export async function listRoleHolders(
   return [...new Set(rows.map((row) => row.userId))];
 }
 
+/** The tenant's facilities (id and type), for jobs that work facility by facility. */
+export async function listFacilitiesIn(tx: Tx, ctx: TenantContext) {
+  const rows = await repo.listFacilities(tx, ctx.tenantId);
+  return rows.map((f) => ({ id: f.id, type: f.type }));
+}
+
+/** One facility's id and type inside the caller's transaction, or null. */
+export async function findFacilityIn(tx: Tx, ctx: TenantContext, facilityId: string) {
+  const row = await repo.findFacility(tx, ctx.tenantId, facilityId);
+  return row ? { id: row.id, type: row.type } : null;
+}
+
+/** A facility's active departments inside the caller's transaction. */
+export async function listDepartmentsIn(tx: Tx, ctx: TenantContext, facilityId: string) {
+  const rows = await repo.listDepartments(tx, ctx.tenantId, facilityId);
+  return rows.map((d) => ({ id: d.id, nameAr: d.nameAr, nameEn: d.nameEn, typeCode: d.typeCode }));
+}
+
 /** Whom to email: name, address and sign-up language of members of this tenant. */
 export function listRecipients(tx: Tx, ctx: TenantContext, userIds: string[]) {
   return repo.listRecipients(tx, ctx.tenantId, userIds);
