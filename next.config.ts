@@ -5,7 +5,8 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   // Native module: load it from node_modules at runtime instead of bundling it. The PDF
   // reader is kept out of the bundle too, as it loads its worker from its own package.
-  serverExternalPackages: ["@node-rs/argon2", "unpdf", "mammoth"],
+  // playwright-core launches Chromium to print reports and must not be bundled either.
+  serverExternalPackages: ["@node-rs/argon2", "unpdf", "mammoth", "playwright-core"],
   partialPrefetching: true,
   experimental: {
     // Framework imports (5 MB) and documents (10 MB) are uploaded through server actions,

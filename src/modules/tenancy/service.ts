@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { z } from "zod";
 import { withoutTenant, withSystem, withTenant, type TenantContext, type Tx } from "@/lib/db";
 import { DomainError, ForbiddenError } from "@/lib/errors";
 import { recordAudit, recordPlatformAudit } from "@/modules/audit/service";
@@ -460,6 +461,17 @@ export async function listFacilityPeople(ctx: AccessContext, facilityId: string)
   return [...people.values()];
 }
 export type FacilityPerson = Awaited<ReturnType<typeof listFacilityPeople>>[number];
+
+/**
+ * Display names of people who acted on the caller's tenant records, keyed by user id. Covers
+ * members and assigned consultants (who are not members); anyone else stays hidden by RLS.
+ */
+export async function listUserNames(ctx: AccessContext, userIds: readonly string[]) {
+  const ids = [...new Set(userIds)].filter((id) => z.uuid().safeParse(id).success);
+  if (ids.length === 0) return new Map<string, string>();
+  const rows = await withTenant(ctx, (tx) => repo.listUserNames(tx, ids));
+  return new Map(rows.map((row) => [row.id, row.name]));
+}
 
 // --- For background jobs --------------------------------------------------------------------
 // Jobs act for the tenant, not for a person, so these take the job's own tenant transaction.

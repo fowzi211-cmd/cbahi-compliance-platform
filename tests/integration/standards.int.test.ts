@@ -80,7 +80,10 @@ describe("import preview", () => {
   });
 
   it("reports errors without storing anything", async () => {
-    const before = await withSystem((tx) => tx.frameworkImport.count());
+    // Counted per admin: other test files import editions in parallel.
+    const mine = () =>
+      withSystem((tx) => tx.frameworkImport.count({ where: { createdBy: admin.userId } }));
+    const before = await mine();
     const preview = await previewImport(admin, {
       fileName: "broken.csv",
       bytes: bytes("chapter_code,standard_code,code,department_types\nC1,S1,E1,kitchen"),
@@ -97,7 +100,7 @@ describe("import preview", () => {
         }),
       ]),
     });
-    expect(await withSystem((tx) => tx.frameworkImport.count())).toBe(before);
+    expect(await mine()).toBe(before);
   });
 
   it.each([

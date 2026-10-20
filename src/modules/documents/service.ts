@@ -18,8 +18,8 @@ import { contentTypes, detectFileKind, maxUploadBytes, scannableKinds } from "./
 import {
   approvalDecisions,
   decisionProblem,
-  documentTypes,
   isCitable,
+  uploadTypes,
   versionDatesProblem,
   versionState,
   type VersionStatus,
@@ -29,7 +29,7 @@ import { daysFrom as daysBetween, expiryWarningDays } from "./domain/reminders";
 import { extractText } from "./extract-text";
 import * as repo from "./repo";
 
-export { documentTypes, approvalDecisions } from "./domain/lifecycle";
+export { documentTypes, uploadTypes, approvalDecisions } from "./domain/lifecycle";
 export type { DocumentType, VersionState, VersionStatus } from "./domain/lifecycle";
 export { maxUploadBytes } from "./domain/file-type";
 export type { PhiKind } from "./domain/phi-scan";
@@ -88,7 +88,7 @@ const versionInput = z.object({
 export type VersionInput = z.input<typeof versionInput>;
 
 const documentInput = versionInput.extend({
-  type: z.enum(documentTypes),
+  type: z.enum(uploadTypes),
   titleAr: optionalText(300),
   titleEn: optionalText(300),
   departmentId: z
@@ -377,6 +377,114 @@ export async function createDocument(
   return { documentId, versionId };
 }
 
+export type ReportFile = {
+  titleAr: string;
+  titleEn: string;
+  fileName: string;
+  bytes: Uint8Array;
+};
+
+/**
+ * Files reports the platform printed (M15) as facility-wide `report` documents, all in one
+ * transaction with the caller's own rows. The caller checks the right to issue them; any
+ * member of the facility may then read and download them like other documents. A report is
+ * a record of locked data, not a policy waiting for sign-off, so its only version is in
+ * force from the day it was printed and is never due for review. The attestation and the
+ * PHI scan still apply: a scorer's comment could quote a patient.
+ */
+export async function fileReports(
+  ctx: AccessContext,
+  facilityId: string,
+  files: readonly ReportFile[],
+  attestation: { phiAttested: boolean; phiConfirmed?: boolean },
+  now: Date,
+  inTransaction: (tx: Tx, created: { documentId: string; versionId: string }[]) => Promise<void>,
+) {
+  if (!isFacilityMember(ctx, facilityId)) throw new ForbiddenError("document.upload");
+  const prepared: {
+    file: ReportFile;
+    ready: PreparedFile;
+    documentId: string;
+    versionId: string;
+    key: string;
+  }[] = [];
+  for (const file of files) {
+    const ready = await prepareFile(
+      versionInput.parse({
+        file: { name: file.fileName, bytes: file.bytes },
+        effectiveOn: toRiyadhDay(now),
+        phiAttested: attestation.phiAttested,
+        phiConfirmed: attestation.phiConfirmed ?? false,
+      }),
+    );
+    const documentId = uuidv7();
+    const versionId = uuidv7();
+    const key = storageKey(ctx.tenantId, facilityId, "documents", documentId, versionId);
+    prepared.push({ file, ready, documentId, versionId, key });
+  }
+  const stored: string[] = [];
+  try {
+    for (const p of prepared) {
+      await putObject(p.key, p.ready.bytes, p.ready.contentType);
+      stored.push(p.key);
+    }
+    await withTenant(ctx, async (tx) => {
+      for (const p of prepared) {
+        await repo.insertDocument(tx, ctx.tenantId, {
+          id: p.documentId,
+          facilityId,
+          departmentId: null,
+          type: "report",
+          titleAr: p.file.titleAr,
+          titleEn: p.file.titleEn,
+          ownerUserId: ctx.userId,
+        });
+        await recordAudit(tx, ctx, {
+          action: "create",
+          entity: "document",
+          entityId: p.documentId,
+          after: { type: "report", titleAr: p.file.titleAr, titleEn: p.file.titleEn },
+        });
+        await repo.insertVersion(tx, ctx.tenantId, {
+          id: p.versionId,
+          documentId: p.documentId,
+          version: 1,
+          fileName: p.ready.name,
+          contentType: p.ready.contentType,
+          bytes: p.ready.bytes.length,
+          sha256: p.ready.sha256,
+          storageKey: p.key,
+          effectiveOn: fromDay(toRiyadhDay(now)),
+          reviewOn: null,
+          expiresOn: null,
+          changeNote: null,
+          phiScan: p.ready.phiScan,
+          phiOverride: p.ready.phiOverride,
+          uploadedBy: ctx.userId,
+          uploadedAt: now,
+        });
+        await auditUpload(tx, ctx, p.versionId, p.documentId, 1, p.ready);
+        await repo.setVersionStatus(tx, ctx.tenantId, p.versionId, "in_review", "approved");
+        await recordAudit(tx, ctx, {
+          action: "approve",
+          entity: "document_version",
+          entityId: p.versionId,
+          before: { status: "in_review" },
+          after: { status: "approved", generated: true },
+        });
+      }
+      await inTransaction(
+        tx,
+        prepared.map((p) => ({ documentId: p.documentId, versionId: p.versionId })),
+      );
+    });
+  } catch (error) {
+    for (const key of stored) await deleteObject(key).catch(() => undefined);
+    throw error;
+  }
+  return prepared.map((p) => ({ documentId: p.documentId, versionId: p.versionId }));
+}
+
 /**
  * Adds a new version, waiting for approval. The approved version stays in force until the
  * new one is approved. One version waits for review at a time, and the same file cannot be
@@ -569,6 +677,7 @@ export async function listCitableVersions(
     repo.listApprovedVersions(tx, ctx.tenantId, facilityId),
   );
   return rows
+    .filter((v) => v.document.type !== "report")
     .filter((v) =>
       isCitable(
         { status: v.status, reviewOn: toDay(v.reviewOn), expiresOn: toDay(v.expiresOn) },

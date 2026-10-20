@@ -1,4 +1,11 @@
-import { test as base, expect, type APIRequestContext, type Page } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import {
+  test as base,
+  expect,
+  type APIRequestContext,
+  type Browser,
+  type Page,
+} from "@playwright/test";
 import * as OTPAuth from "otpauth";
 
 // Shared helpers for journeys that need a signed-in user. Every test creates its own people
@@ -75,6 +82,46 @@ export async function signUpOwner(
   });
   expect(verify.ok()).toBe(true);
   return { email, secret };
+}
+
+/** A second browser context, looking like another client to the rate limiter. */
+export async function newPage(browser: Browser, baseURL: string) {
+  const context = await browser.newContext({
+    baseURL,
+    locale: "ar-SA",
+    extraHTTPHeaders: { "x-forwarded-for": `10.202.${Math.floor(Math.random() * 250)}.9` },
+  });
+  return context.newPage();
+}
+
+/** An account with two-factor on and no organization, as a consultant starts. */
+export async function signUpConsultant(page: Page, baseURL: string) {
+  const email = uniqueEmail("consultant");
+  const headers = { origin: baseURL };
+  const signUp = await page.request.post("/api/auth/sign-up/email", {
+    headers,
+    data: { name: "سارة المستشارة", email, password: PASSWORD, locale: "ar" },
+  });
+  expect(signUp.ok()).toBe(true);
+  const enable = await page.request.post("/api/auth/two-factor/enable", {
+    headers,
+    data: { password: PASSWORD },
+  });
+  const { totpURI } = (await enable.json()) as { totpURI: string };
+  const secret = new URL(totpURI).searchParams.get("secret")!;
+  const verify = await page.request.post("/api/auth/two-factor/verify-totp", {
+    headers,
+    data: { code: totpCode(secret) },
+  });
+  expect(verify.ok()).toBe(true);
+  return email;
+}
+
+export async function expectAccessible(page: Page) {
+  const a11y = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+    .analyze();
+  expect(a11y.violations).toEqual([]);
 }
 
 export const test = base.extend({

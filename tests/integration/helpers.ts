@@ -13,6 +13,7 @@ import {
   submitAssessment,
 } from "@/modules/assessments/service";
 import { createDocument, decideVersion } from "@/modules/documents/service";
+import { exportMockSurveyReport, startMockSurvey } from "@/modules/surveys/service";
 import { addCapaEvidence, createCapaItem, listFindings } from "@/modules/findings/service";
 import { toRiyadhDay } from "@/lib/dates";
 import { makePdf } from "@/modules/documents/test-files";
@@ -194,4 +195,27 @@ export async function demoCapaItem(ctx: AccessContext, facilityId: string) {
     url: "https://intranet.example.test/training-record",
   });
   return { findingId: finding.id, itemId, evidenceId };
+}
+
+/**
+ * Runs a mock survey to the end as the caller (a consultant or the quality team): the ESR
+ * element Not Met, the rest Met, each with an observation; locks it and issues its report.
+ */
+export async function submitDemoMockSurvey(
+  ctx: AccessContext,
+  facilityId: string,
+  frameworkId: string,
+) {
+  const assessmentId = await startMockSurvey(ctx, facilityId, { frameworkId });
+  const sheet = (await getAssessmentSheet(ctx, assessmentId))!;
+  for (const element of sheet.chapters.flatMap((c) => c.standards.flatMap((s) => s.elements))) {
+    await saveElementScore(ctx, assessmentId, element.id, {
+      levelCode: element.isEsr ? "NM" : "MET",
+      comment: element.isEsr ? "Not in place on the day." : "In place.",
+      evidence: { kind: "observation", note: "Walked the clinic." },
+    });
+  }
+  await submitAssessment(ctx, assessmentId);
+  const reports = await exportMockSurveyReport(ctx, assessmentId, { phiAttested: true });
+  return { assessmentId, reports };
 }

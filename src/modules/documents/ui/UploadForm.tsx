@@ -6,7 +6,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldHint, Input, Label, Select, Textarea } from "@/components/ui/input";
 import { idleState, type FormState } from "@/lib/form-state";
-import { documentTypes } from "../domain/lifecycle";
+import { uploadTypes } from "../domain/lifecycle";
 
 type Option = { value: string; label: string };
 
@@ -63,7 +63,7 @@ export function UploadForm({
           <Field>
             <Label htmlFor={`${id}-type`}>{t("upload.type")}</Label>
             <Select id={`${id}-type`} name="type" required defaultValue="policy">
-              {documentTypes.map((type) => (
+              {uploadTypes.map((type) => (
                 <option key={type} value={type}>
                   {t(`types.${type}`)}
                 </option>

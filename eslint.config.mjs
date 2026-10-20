@@ -8,7 +8,8 @@ import nextTs from "eslint-config-next/typescript";
 // - `domain/` is pure: no Prisma, no Next.js, no lib I/O.
 // - routes (src/app) may also render a module's `ui/` components;
 // - the worker (src/worker) registers each module's `jobs.ts` handlers, and integration
-//   tests call them with a fake clock.
+//   tests call them with a fake clock;
+// - the report's visual snapshot (tests/e2e/report-*) renders the surveys report template.
 const moduleInternals = [
   "@/modules/*/repo",
   "@/modules/*/repo.*",
@@ -67,6 +68,12 @@ const eslintConfig = defineConfig([
         },
       ],
     },
+  },
+  {
+    // The report's visual snapshot prints the template itself from a fixed fixture, so it
+    // needs the pure summary and the HTML template rather than a running survey.
+    files: ["tests/e2e/report-*.ts"],
+    rules: { "no-restricted-imports": "off" },
   },
   {
     files: ["src/modules/*/domain/**/*.{ts,tsx}"],

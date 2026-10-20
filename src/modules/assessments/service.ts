@@ -34,6 +34,7 @@ import {
   unscoredElements,
   type AssessmentKind,
 } from "./domain/assessment";
+import type { ScoreSource } from "./domain/expiry";
 import { complianceBreakdown } from "./domain/compliance";
 import { elementScoreProblems } from "./domain/element-score";
 import {
@@ -49,6 +50,7 @@ import * as repo from "./repo";
 
 export { evidenceKinds, evidenceLimits } from "./domain/assessment";
 export type { AssessmentKind, AssessmentStatus, EvidenceKind } from "./domain/assessment";
+export type { ScoreSource } from "./domain/expiry";
 export type { ReadinessReason, ReadinessStatus } from "./domain/readiness";
 /** The score at which a facility counts as ready, drawn on the trend chart. */
 export const readyScore = defaultReadinessSettings.readyScore;
@@ -76,6 +78,7 @@ type Scoped = {
   facilityId: string;
   departmentId: string | null;
   kind: AssessmentKind;
+  source: ScoreSource;
   assignedTo: string | null;
 };
 
@@ -83,11 +86,20 @@ const scopeOf = (a: Scoped): Resource => ({
   facilityId: a.facilityId,
   departmentId: a.departmentId,
   assigneeUserIds: a.assignedTo ? [a.assignedTo] : [],
+  surveyKind: a.source,
 });
 
-/** A tracer run is scored under `tracer.run` (its assignee may score it); the rest by role. */
+/**
+ * A tracer run is scored under `tracer.run` (its assignee may score it) and a mock survey
+ * under `mockSurvey.run` for its source, so a consultant's survey is scored by consultants
+ * only and an internal one by the quality team. Self-assessments are scored by role.
+ */
 const scoreAction = (a: Scoped): Action =>
-  a.kind === "tracer" ? "tracer.run" : "assessment.score";
+  a.kind === "tracer"
+    ? "tracer.run"
+    : a.kind === "mock_survey"
+      ? "mockSurvey.run"
+      : "assessment.score";
 
 const canScore = (ctx: AccessContext, a: Scoped) => allowed(ctx, scoreAction(a), scopeOf(a));
 
@@ -240,6 +252,52 @@ export async function startAssessment(
   });
 }
 
+/**
+ * Starts a mock survey of the whole facility against one of its editions. `source` says who
+ * runs it: the quality team (internal) or an assigned consultant. The surveys module decides
+ * whether the tenant's plan allows a consultant survey before calling this.
+ */
+export async function startMockSurveyAssessment(
+  ctx: AccessContext,
+  facilityId: string,
+  input: { frameworkId: string; source: ScoreSource },
+  now = new Date(),
+) {
+  const scope = { facilityId, departmentId: null, surveyKind: input.source };
+  if (!allowed(ctx, "mockSurvey.run", scope)) throw new ForbiddenError("mockSurvey.run");
+  if (!(await getFacility(ctx, facilityId))) throw new ForbiddenError("mockSurvey.run");
+  if (!z.uuid().safeParse(input.frameworkId).success) {
+    throw new DomainError<AssessmentError>("unknownFramework");
+  }
+  const content = await getScoringContent(ctx, facilityId, input.frameworkId);
+  if (!content) throw new DomainError<AssessmentError>("unknownFramework");
+  if (scopeElements(content, undefined).length === 0) {
+    throw new DomainError<AssessmentError>("nothingToScore");
+  }
+  return withTenant(ctx, async (tx) => {
+    const { id } = await repo.insertAssessment(tx, ctx.tenantId, {
+      facilityId,
+      frameworkId: input.frameworkId,
+      departmentId: null,
+      startedBy: ctx.userId,
+      startedAt: now,
+      kind: "mock_survey",
+      source: input.source,
+    });
+    await recordAudit(tx, ctx, {
+      action: "create",
+      entity: "assessment",
+      entityId: id,
+      after: {
+        kind: "mock_survey",
+        source: input.source,
+        framework: `${content.framework.code} ${content.framework.edition}`,
+      },
+    });
+    return id;
+  });
+}
+
 // --- The scoring sheet ----------------------------------------------------------------------
 
 /**
@@ -276,6 +334,12 @@ export async function getAssessmentSheet(ctx: AccessContext, assessmentId: strin
             score: score
               ? {
                   levelCode: score.level.code,
+                  // 0..1 against the scale's top counting level; null for a level that
+                  // does not count (N/A).
+                  normalized: (() => {
+                    const level = findLevel(content.scale, score.level.code);
+                    return level ? normalizedValue(level, content.scale) : null;
+                  })(),
                   comment: score.comment,
                   scoredAt: score.scoredAt,
                   evidence: score.evidence,
@@ -315,9 +379,11 @@ export async function getAssessmentSheet(ctx: AccessContext, assessmentId: strin
     framework: content.framework,
     scale: content.scale,
     esrAllowedLevels: content.rollupConfig.esr.allowed_levels,
+    esrBlocksReadiness: content.rollupConfig.esr.any_not_met_blocks_readiness,
     canScore: assessment.status === "in_progress" && canScore(ctx, assessment),
     progress: progress(scope, scoredIds),
     score: rollup.facility,
+    chapterScores: rollup.chapters as ReadonlyMap<string, typeof rollup.facility>,
     chapters,
     findings,
   };
@@ -517,19 +583,27 @@ export async function submitAssessment(ctx: AccessContext, assessmentId: string,
       throw new DomainError<AssessmentError>("incomplete");
     }
 
-    const current = (
-      await repo.listStatuses(tx, ctx.tenantId, assessment.facilityId, [...byId.keys()])
-    ).map(toStatusRecord);
-    const updates = statusUpdatesOnSubmit({
-      source: assessment.source,
-      scores: scores.map((s) => ({
-        elementId: s.elementId,
-        scoreId: s.id,
-        levelCode: s.level.code,
-        scoredAt: s.scoredAt,
-      })),
-      current,
-    });
+    // An internal mock survey is a rehearsal: its verdict lives in its own report and does
+    // not move the internal series (decision 6). A consultant's survey is the consultant
+    // series, kept apart from the internal one (decision 7).
+    const feedsSeries = !(assessment.kind === "mock_survey" && assessment.source === "internal");
+    const current = feedsSeries
+      ? (await repo.listStatuses(tx, ctx.tenantId, assessment.facilityId, [...byId.keys()])).map(
+          toStatusRecord,
+        )
+      : [];
+    const updates = feedsSeries
+      ? statusUpdatesOnSubmit({
+          source: assessment.source,
+          scores: scores.map((s) => ({
+            elementId: s.elementId,
+            scoreId: s.id,
+            levelCode: s.level.code,
+            scoredAt: s.scoredAt,
+          })),
+          current,
+        })
+      : [];
     for (const update of updates) {
       await repo.upsertStatus(tx, ctx.tenantId, assessment.facilityId, {
         elementId: update.elementId,
@@ -565,24 +639,29 @@ export async function submitAssessment(ctx: AccessContext, assessmentId: string,
       }),
     );
 
-    const verified = await verifyFindings(
-      tx,
-      ctx,
-      {
-        facilityId: assessment.facilityId,
-        departmentId: assessment.departmentId,
-        scores: scores.map((s) => {
-          const level = findLevel(content.scale, s.level.code);
-          return {
-            elementId: s.elementId,
-            scoreId: s.id,
-            normalized: level ? (normalizedValue(level, content.scale) ?? 0) : 0,
-            scoredAt: s.scoredAt,
-          };
-        }),
-      },
-      now,
-    );
+    // Rule 7: a finding is verified by the facility's own later check. A mock survey's
+    // "met" is a rehearsal or an outside opinion and does not close the loop on its own.
+    const verified =
+      assessment.kind === "mock_survey"
+        ? 0
+        : await verifyFindings(
+            tx,
+            ctx,
+            {
+              facilityId: assessment.facilityId,
+              departmentId: assessment.departmentId,
+              scores: scores.map((s) => {
+                const level = findLevel(content.scale, s.level.code);
+                return {
+                  elementId: s.elementId,
+                  scoreId: s.id,
+                  normalized: level ? (normalizedValue(level, content.scale) ?? 0) : 0,
+                  scoredAt: s.scoredAt,
+                };
+              }),
+            },
+            now,
+          );
 
     await repo.markSubmitted(tx, ctx.tenantId, assessment.id, ctx.userId, now);
     await recordAudit(tx, ctx, {

@@ -2,8 +2,22 @@
 // strings, which compare correctly as text and cannot be shifted by a time zone.
 
 // `minutes` are meeting minutes (M12): a committee files them through its meeting.
-export const documentTypes = ["policy", "procedure", "form", "plan", "minutes", "other"] as const;
+// `report` is a report the platform prints (M15: a mock survey's findings). It is never
+// uploaded by hand and never cited as evidence: a surveyor wants the facility's own records,
+// not a rehearsal's verdict on them.
+export const documentTypes = [
+  "policy",
+  "procedure",
+  "form",
+  "plan",
+  "minutes",
+  "other",
+  "report",
+] as const;
 export type DocumentType = (typeof documentTypes)[number];
+export const uploadTypes = documentTypes.filter(
+  (type): type is Exclude<DocumentType, "report"> => type !== "report",
+);
 
 export const versionStatuses = ["in_review", "approved", "rejected", "superseded"] as const;
 export type VersionStatus = (typeof versionStatuses)[number];

@@ -270,6 +270,12 @@ erDiagram
 - `day` is the Riyadh calendar day. The consultant series is written only once a consultant has scored something in that edition.
 - `tenant_id`, composite foreign keys and the `tenant_isolation` RLS policy, as for every tenant-owned table.
 
+**As built in M15** (differences from the diagram above):
+
+- A mock survey is an `assessment` with `kind = mock_survey`, whole-facility (no department), `source` set from who starts it (`internal` for the quality team, `consultant` for an assigned consultant). Submitting is the lock, as for every assessment; no separate `locked` status was needed.
+- `survey_report (assessment_id, locale, document_id, created_by, created_at)` links a locked mock survey to its printed report, one row per language (`unique(assessment_id, locale)`, CHECK `locale in ('ar','en')`). The PDF itself is a `document` of the new type `report`. A trigger refuses a row unless the assessment is a submitted mock survey and the document is a report of the same facility; another refuses any UPDATE or DELETE, so an issued report stays tied to its survey.
+- `tenant_id`, composite foreign keys and the `tenant_isolation` RLS policy.
+
 ### 3.4 Documents, committees, notifications, audit
 
 ```mermaid
@@ -314,6 +320,10 @@ erDiagram
 - There is no `MeetingMinute` table. Minutes are a `document` of the new type `minutes`, and `meeting.minutes_document_id` points at the document, not at one version: a correction is a new version of the same document, approved like any other, so the meeting keeps one set of minutes with its history.
 - `MeetingMinute }o--o{ Element` is `document_element`: when minutes are filed they are linked, in the same transaction, to every element the committee oversees at that moment (`committee_element`). Links made later to the committee do not reach back to older minutes, which record what the committee oversaw when it met.
 - `committee` has `chair_user_id` (optional), `created_by`, `archived_at` (dissolved committees leave the list; their meetings and minutes stay). `meeting` is unique per committee and day. A trigger keeps filed minutes on their meeting: once `minutes_document_id` is set it cannot change, the meeting cannot move or be deleted, and the document must be minutes of the committee's own facility.
+
+**As built in M15** (differences from the diagram above):
+
+- `document.type` gains `report`: a printed mock survey report, filed by the platform rather than uploaded. Its single version is approved on creation (audited as `approve` with `generated: true`), facility-wide, effective on the print day, with no review or expiry date. A report can be read and downloaded by every member but never cited as evidence or linked from the upload form.
 
 **Phase 2 placeholders**: tables designed, not built. `KpiDefinition` / `KpiValue` (monthly) link to elements with evidence type `kpi`. `StaffCredential` (SCFHS licence, BLS/ACLS) with expiry reminders reuses the document reminder job. `Incident`. `Crosswalk(element_a, element_b, relation)`. `SeasonalCycle` (a facility with `active_from`/`active_to` and time-bounded snapshots). The benchmarking view aggregates `ElementStatus` across tenants with k-anonymity (no result for groups smaller than 5 facilities).
 
@@ -379,6 +389,13 @@ erDiagram
 - _Struggle signal (rule 9)._ The `signals` job runs at 23:55 Riyadh for every tenant with the feature, per facility that has at least one framework edition. Reasons: an ESR element **not met** in any edition (not merely unverified, which the dashboard already flags), more than `maxOverdueCapa` (5) overdue CAPA items, or a survey expected within 90 days while the weakest edition scores below the readiness threshold (0.8). Any reason raises an `offered` request, unless one is still waiting for an answer or the last offer is under 14 days old. The offer shows on the dashboard and on the requests page; nothing is emailed.
 - _Service requests._ The facility creates a request (`open`) or accepts an offer, choosing its kind (`offered → open`), dismisses an offer (`offered → dismissed`), and can withdraw an open request until the platform starts it (`open → cancelled`). The platform team starts (`open → in_progress`), completes (`in_progress → done`) or cancels (`open|in_progress → cancelled`), optionally with a note the facility sees. Moves are guarded on the current status, so two people acting at once cannot both win. Every move is audited.
 - _Who._ `service.request` (owner and quality manager, facility-wide) asks and answers. The subscription and assigned consultants are shown to whoever has `subscription.view`. The platform admin manages tiers, the consultant flag (revoking it ends every live assignment) and assignments, and works the request queue; the admin sees tenant and facility names, subscriptions and requests, never compliance data. The admin flag itself stays CLI-only.
+
+**As built in M15** (`surveys/domain/report.ts`, `surveys/service.ts`, `surveys/ui/report-html.ts`, `lib/pdf.ts`):
+
+- _Who runs it._ `mockSurvey.run` per §6: the quality manager runs internal surveys, an assigned consultant runs consultant surveys, and a consultant survey also needs the `consultantMockSurvey` feature (rule 10). The owner and viewers can read surveys but not run them. A mock survey covers every applicable element of one edition.
+- _Lock (decision 6)._ Submitting raises findings like any assessment. An **internal** mock survey is a rehearsal: it does not update `element_status`, so the internal series and readiness do not move. A **consultant** survey updates the consultant series (decision 7). Neither verifies findings (rule 7): the facility's own later check does that.
+- _Report._ Issued once per locked survey, in Arabic and English together, by whoever runs that kind of survey or a facility-wide `assessment.score` holder (owner or quality manager). The verdict applies rules 3 and 4 to what was seen on the day: an ESR element below full compliance makes it _not ready_ (or _at risk_ when the edition does not let ESR block readiness), then the score threshold. Overdue CAPA is left out on purpose; it is the facility's live state, not part of the survey. Findings are ordered by severity then element code, and every element's level is listed.
+- _Printing._ The report is HTML with the fonts inlined, printed to A4 by headless Chromium (`playwright-core`) with JavaScript disabled and every network request refused. Each PDF goes through the upload checks (attestation and PHI scan of its text) before it is filed; a PHI hit stops the export until the surveyor confirms. `PDF_RENDERER=fake` swaps in a text-only PDF for integration tests; `PDF_CHROMIUM_PATH` points at a system Chromium when Playwright's own is not installed.
 
 **As built in M8** (`documents/domain/`, `documents/service.ts`):
 

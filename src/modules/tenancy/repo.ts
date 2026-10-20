@@ -328,3 +328,11 @@ export function listRecipients(tx: Tx, tenantId: string, userIds: string[]) {
     select: { id: true, name: true, email: true, locale: true },
   });
 }
+
+/** Names of the given users that the tenant may see (RLS: its members and its consultants). */
+export function listUserNames(tx: Tx, userIds: readonly string[]) {
+  return tx.user.findMany({
+    where: { id: { in: [...userIds] } },
+    select: { id: true, name: true },
+  });
+}

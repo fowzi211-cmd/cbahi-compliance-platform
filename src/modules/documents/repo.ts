@@ -215,6 +215,7 @@ export function listApprovedVersions(tx: Tx, tenantId: string, facilityId: strin
       document: {
         select: {
           id: true,
+          type: true,
           titleAr: true,
           titleEn: true,
           retiredAt: true,

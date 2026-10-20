@@ -30,6 +30,12 @@ async function AppFrame({
   const hiddenNav: NavKey[] = [
     ...(allowed(ctx.access, "membership.manage", scope) ? [] : (["people"] as const)),
     ...(allowed(ctx.access, "service.request", scope) ? [] : (["requests"] as const)),
+    // Mock surveys are for whoever runs them and whoever reads the whole facility's results.
+    ...(allowed(ctx.access, "mockSurvey.run", { ...scope, surveyKind: "internal" }) ||
+    allowed(ctx.access, "mockSurvey.run", { ...scope, surveyKind: "consultant" }) ||
+    allowed(ctx.access, "dashboard.view", { ...scope, departmentId: null })
+      ? []
+      : (["mockSurveys"] as const)),
   ];
   const unreadNotifications = await countUnread(ctx.access);
 
