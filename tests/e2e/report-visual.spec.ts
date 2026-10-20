@@ -30,7 +30,10 @@ for (const locale of reportLocales) {
     await page.evaluate(() => document.fonts.ready);
     await expect(page).toHaveScreenshot(`mock-survey-report-${locale}.png`, {
       fullPage: true,
-      maxDiffPixelRatio: 0.02,
+      // The baselines come from a different Chromium build than CI's, and glyph
+      // anti-aliasing differs between builds (about 3% of pixels). A layout change moves
+      // far more than that: a shifted table or a missing section changes most of the page.
+      maxDiffPixelRatio: 0.06,
     });
   });
 }
