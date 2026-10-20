@@ -3,6 +3,10 @@ import { z } from "zod";
 const postgresUrl = (name: string) =>
   z.string().regex(/^postgres(ql)?:\/\//, `${name} must be a postgres:// connection string`);
 
+// An empty value counts as unset: docker compose passes `${VAR:-}` through as "".
+const optional = <T extends z.ZodType>(schema: T) =>
+  z.preprocess((value) => (value === "" ? undefined : value), schema.optional());
+
 // Every environment variable the app reads is declared here and validated once at startup.
 // Keep this in sync with `.env.example`.
 export const envSchema = z.object({
@@ -13,6 +17,8 @@ export const envSchema = z.object({
   DATABASE_SYSTEM_URL: postgresUrl("DATABASE_SYSTEM_URL"),
   BETTER_AUTH_SECRET: z.string().min(32),
   S3_ENDPOINT: z.url(),
+  // Where browsers reach the store, for signed download links. Unset means S3_ENDPOINT.
+  S3_PUBLIC_ENDPOINT: optional(z.url()),
   S3_REGION: z.string().min(1),
   S3_BUCKET: z.string().min(1),
   S3_ACCESS_KEY_ID: z.string().min(1),
@@ -21,6 +27,9 @@ export const envSchema = z.object({
   SMTP_HOST: z.string().min(1),
   SMTP_PORT: z.coerce.number().int().positive(),
   SMTP_FROM: z.string().min(1),
+  // Both or neither: a relay that needs a login (a hosted provider), not Mailpit.
+  SMTP_USER: optional(z.string()),
+  SMTP_PASSWORD: optional(z.string()),
   EMAIL_TRANSPORT: z.enum(["smtp", "memory"]).default("smtp"),
 });
 

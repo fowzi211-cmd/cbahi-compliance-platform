@@ -1,0 +1,17 @@
+# HTTPS certificates are issued and renewed automatically (Let's Encrypt, then ZeroSSL).
+
+{$APP_HOST} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}
+
+# Signed download links only: the store refuses any request without a valid signature. The
+# Host header is passed through unchanged, as the signature covers it.
+{$FILES_HOST} {
+	reverse_proxy seaweedfs:8333
+}
+
+# Demo inbox (Mailpit), behind its own login.
+{$MAIL_HOST} {
+	reverse_proxy mailpit:8025
+}

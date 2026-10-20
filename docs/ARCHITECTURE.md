@@ -37,6 +37,8 @@
 
 **Deployment shape (later):** two processes from one image: `web` (Next.js) and `worker` (pg-boss consumers). Managed Postgres plus object storage in a KSA region. Secrets come from environment variables or the cloud secret manager.
 
+**Staging (as built):** the same image on one Ubuntu server (a Hostinger VPS in Europe, chosen by the owner for the demo, as Hostinger has no KSA region; Google Cloud Dammam is the documented residency option), with Postgres, SeaweedFS and Mailpit beside it under Docker Compose and Caddy for HTTPS. Deployed by hand from GitHub Actions. Details, limits and the path to production: [`DEPLOYMENT.md`](DEPLOYMENT.md). Signed download links are signed for the public file host (`S3_PUBLIC_ENDPOINT`), as the signature covers the host name.
+
 ## 2. Module boundaries
 
 Modular monolith. Each module owns its tables, exposes a typed **service API**, and is the only code allowed to query its tables. UI and other modules call services, never Prisma directly.

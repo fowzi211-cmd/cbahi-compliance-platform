@@ -1,0 +1,14 @@
+# Keep the build context small and free of local secrets and data.
+.git
+.github
+node_modules
+.next
+src/generated
+coverage
+test-results
+playwright-report
+blob-report
+.env*
+!.env.example
+deploy/.env
+*.pem
