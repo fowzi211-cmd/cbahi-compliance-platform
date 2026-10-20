@@ -62,6 +62,7 @@ model Tenant {
   snapshots             ComplianceSnapshot[]
   consultantAssignments ConsultantAssignment[]
   serviceRequests       ServiceRequest[]
+  surveyReports         SurveyReport[]
 
   @@map("tenant")
 }
@@ -630,6 +631,7 @@ model Assessment {
   // The elements a sampled assessment (a tracer run) covers; empty for a full assessment.
   sample     AssessmentElement[]
   tracerRun  TracerRun?
+  reports    SurveyReport[]
 
   @@unique([tenantId, id])
   @@index([tenantId, facilityId, startedAt])
@@ -778,6 +780,8 @@ enum DocumentType {
   plan
   minutes
   other
+  // M15: a report the platform prints (a mock survey's findings). Never uploaded by hand.
+  report
 }
 
 enum DocumentVersionStatus {
@@ -812,6 +816,7 @@ model Document {
   versions   DocumentVersion[]
   elements   DocumentElement[]
   meeting    Meeting?
+  report     SurveyReport?
 
   @@unique([tenantId, id])
   @@index([tenantId, facilityId])
@@ -1287,4 +1292,26 @@ model ServiceRequest {
   @@index([tenantId, facilityId, createdAt])
   @@index([status])
   @@map("service_request")
+}
+
+// M15: the printed report of a locked mock survey, one per language. The PDF is a document of
+// type `report`, so it is stored, listed and downloaded like any other facility document.
+model SurveyReport {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  assessmentId String   @map("assessment_id") @db.Uuid
+  // "ar" or "en" (DB CHECK).
+  locale       String
+  documentId   String   @map("document_id") @db.Uuid
+  createdBy    String?  @map("created_by") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assessment Assessment @relation(fields: [tenantId, assessmentId], references: [tenantId, id], onDelete: Cascade)
+  document   Document   @relation(fields: [tenantId, documentId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([assessmentId, locale])
+  @@unique([tenantId, documentId])
+  @@index([tenantId, assessmentId])
+  @@map("survey_report")
 }

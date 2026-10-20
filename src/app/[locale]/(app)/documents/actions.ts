@@ -52,7 +52,7 @@ export async function createDocumentAction(_: FormState, form: FormData): Promis
   try {
     ({ documentId } = await createDocument(ctx.access, ctx.facilityId, {
       ...(await versionFields(form)),
-      type: text(form, "type") as DocumentType,
+      type: text(form, "type") as Exclude<DocumentType, "report">,
       titleAr: text(form, "titleAr"),
       titleEn: text(form, "titleEn"),
       departmentId: text(form, "departmentId"),

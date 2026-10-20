@@ -22,6 +22,8 @@ export const envSchema = z.object({
   SMTP_PORT: z.coerce.number().int().positive(),
   SMTP_FROM: z.string().min(1),
   EMAIL_TRANSPORT: z.enum(["smtp", "memory"]).default("smtp"),
+  PDF_RENDERER: z.enum(["playwright", "fake"]).default("playwright"),
+  PDF_CHROMIUM_PATH: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

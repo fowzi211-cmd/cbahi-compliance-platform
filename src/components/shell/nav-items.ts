@@ -1,5 +1,6 @@
 import {
   ClipboardCheck,
+  ClipboardList,
   FileText,
   LayoutDashboard,
   LifeBuoy,
@@ -17,6 +18,7 @@ export type NavKey =
   | "standards"
   | "assessments"
   | "tracers"
+  | "mockSurveys"
   | "findings"
   | "documents"
   | "committees"
@@ -35,6 +37,7 @@ export const navItems: NavItem[] = [
   { key: "standards", href: "/standards", icon: Library },
   { key: "assessments", href: "/assessments", icon: ClipboardCheck },
   { key: "tracers", href: "/tracers", icon: Route },
+  { key: "mockSurveys", href: "/mock-surveys", icon: ClipboardList },
   { key: "findings", href: "/findings", icon: ListChecks },
   { key: "documents", href: "/documents", icon: FileText },
   { key: "committees", href: "/committees", icon: Users },

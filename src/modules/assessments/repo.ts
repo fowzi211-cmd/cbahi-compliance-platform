@@ -58,6 +58,7 @@ export function insertAssessment(
     startedBy: string;
     startedAt: Date;
     kind?: AssessmentKind;
+    source?: ScoreSource;
     assignedTo?: string | null;
   },
 ) {

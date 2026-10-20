@@ -1,52 +1,11 @@
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import AxeBuilder from "@axe-core/playwright";
-import type { Browser, Page } from "@playwright/test";
-import { expect, PASSWORD, signUpOwner, test, totpCode, uniqueEmail } from "./fixtures";
+import { expect, expectAccessible, newPage, signUpConsultant, signUpOwner, test } from "./fixtures";
 
 // ROADMAP M14 definition of done: a consultant can reach only their assigned facility. The
 // platform admin makes one tenant Hybrid and assigns a consultant there; a second tenant
 // stays on Platform and refuses the assignment. The service-request ticket flow runs between
 // the first tenant's owner and the platform team.
-
-async function newPage(browser: Browser, baseURL: string) {
-  const context = await browser.newContext({
-    baseURL,
-    locale: "ar-SA",
-    extraHTTPHeaders: { "x-forwarded-for": `10.202.${Math.floor(Math.random() * 250)}.9` },
-  });
-  return context.newPage();
-}
-
-/** An account with two-factor on and no organization, as a consultant starts. */
-async function signUpConsultant(page: Page, baseURL: string) {
-  const email = uniqueEmail("consultant");
-  const headers = { origin: baseURL };
-  const signUp = await page.request.post("/api/auth/sign-up/email", {
-    headers,
-    data: { name: "سارة المستشارة", email, password: PASSWORD, locale: "ar" },
-  });
-  expect(signUp.ok()).toBe(true);
-  const enable = await page.request.post("/api/auth/two-factor/enable", {
-    headers,
-    data: { password: PASSWORD },
-  });
-  const { totpURI } = (await enable.json()) as { totpURI: string };
-  const secret = new URL(totpURI).searchParams.get("secret")!;
-  const verify = await page.request.post("/api/auth/two-factor/verify-totp", {
-    headers,
-    data: { code: totpCode(secret) },
-  });
-  expect(verify.ok()).toBe(true);
-  return email;
-}
-
-async function expectAccessible(page: Page) {
-  const a11y = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
-    .analyze();
-  expect(a11y.violations).toEqual([]);
-}
 
 test("a consultant reaches only the facility they are assigned to", async ({
   page,

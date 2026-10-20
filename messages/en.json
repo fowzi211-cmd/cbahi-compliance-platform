@@ -11,6 +11,7 @@
     "standards": "Standards library",
     "assessments": "Self-assessment",
     "tracers": "Tracers",
+    "mockSurveys": "Mock surveys",
     "findings": "Findings & action plans",
     "documents": "Documents",
     "committees": "Committees",
@@ -830,7 +831,8 @@
       "form": "Form",
       "plan": "Plan",
       "minutes": "Meeting minutes",
-      "other": "Other"
+      "other": "Other",
+      "report": "Report"
     },
     "states": {
       "current": "Approved and in force",
@@ -1187,6 +1189,139 @@
       "esrLevelNotAllowed": "ESR elements take only “Met” or “Not met”.",
       "evidenceRequired": "Describe what you saw or heard: this result needs it.",
       "commentRequired": "Say why the element is not applicable."
+    }
+  },
+  "mockSurveys": {
+    "title": "Mock surveys",
+    "intro": "A rehearsal of survey day: every applicable element is scored the way a surveyor would, then the survey is locked and a formal findings report is issued in Arabic and English. An internal survey does not change the readiness dashboard; a consultant's survey shows on it as a separate series.",
+    "startTitle": "New mock survey",
+    "asConsultant": "You will survey as a consultant, independently of the facility's own assessment.",
+    "asInternal": "You will run an internal survey as the quality team.",
+    "framework": "Framework",
+    "start": "Start survey",
+    "noFrameworks": "No framework has been chosen for this facility yet.",
+    "featureOff": "This facility's plan does not include consultant mock surveys.",
+    "heading": "Surveys",
+    "empty": "No mock surveys yet.",
+    "kinds": {
+      "consultant": "Consultant survey",
+      "internal": "Internal survey"
+    },
+    "startedOn": "Started {date}",
+    "submittedOn": "Locked {date}",
+    "scored": "Elements scored: {count}",
+    "open": "Open",
+    "sheet": {
+      "back": "All mock surveys",
+      "title": "Mock survey: {framework}",
+      "surveyor": "Surveyor: {name}",
+      "lockedNote": "This survey is locked, so its scores cannot change. A correction needs a new survey.",
+      "readOnly": "You can read this survey but not score it.",
+      "seriesInternal": "Internal survey: it does not change the readiness dashboard or verify closed findings.",
+      "seriesConsultant": "This survey's results show on the readiness dashboard as the consultant score, apart from the facility's own assessment."
+    },
+    "export": {
+      "title": "Findings report",
+      "hint": "The report is printed in Arabic and English and filed with the facility's documents. It is issued once, because the survey is locked.",
+      "attest": "I confirm the report contains no patient-identifiable data.",
+      "phiFound": "The scan found something that looks like patient data in the report's text. Check the survey's comments, then confirm they are not patient data to go on.",
+      "confirm": "I have checked the comments and confirm they are not patient data.",
+      "submit": "Issue report (PDF)",
+      "issued": "Report issued {date}.",
+      "notYet": "No report has been issued for this survey yet.",
+      "download": {
+        "ar": "Download the Arabic version (PDF)",
+        "en": "Download the English version (PDF)"
+      },
+      "inDocuments": "View in documents"
+    },
+    "errors": {
+      "featureOff": "This facility's plan does not include consultant mock surveys.",
+      "notMockSurvey": "This survey was not found.",
+      "notLocked": "Lock the survey before issuing its report.",
+      "alreadyExported": "This survey's report has already been issued.",
+      "phiDetected": "The scan found something that looks like patient data. Confirm after checking to go on.",
+      "phiAttestationRequired": "Confirm that the report contains no patient data.",
+      "unknownFramework": "Choose one of the facility's frameworks.",
+      "nothingToScore": "This framework has no applicable elements to score.",
+      "forbidden": "You do not have permission to do this.",
+      "invalid": "Check what you entered."
+    },
+    "report": {
+      "title": "Mock survey findings report",
+      "documentTitle": "Mock survey report {edition}, {date} ({language})",
+      "languages": {
+        "ar": "Arabic",
+        "en": "English"
+      },
+      "meta": {
+        "facility": "Facility",
+        "framework": "Framework",
+        "kind": "Survey type",
+        "surveyor": "Surveyor",
+        "started": "Started",
+        "locked": "Locked",
+        "printed": "Printed"
+      },
+      "kinds": {
+        "consultant": "Platform consultant",
+        "internal": "Facility quality team"
+      },
+      "notice": {
+        "consultant": "A mock survey by a consultant, not an accreditation decision. The results reflect what the surveyor saw on the day and should be read with the facility's current evidence.",
+        "internal": "An internal mock survey by the quality team, not an accreditation decision. The results reflect what the surveyor saw on the day and should be read with the facility's current evidence."
+      },
+      "summary": {
+        "heading": "Summary",
+        "verdict": "Readiness verdict",
+        "score": "Overall score",
+        "findings": "Findings",
+        "esrNotMet": "ESR not met",
+        "esrList": "ESR elements not fully met:"
+      },
+      "verdicts": {
+        "ready": "Ready",
+        "at_risk": "At risk",
+        "not_ready": "Not ready"
+      },
+      "reasons": {
+        "esrNotMet": "At least one essential safety requirement (ESR) element is not fully met.",
+        "scoreBelowThreshold": "The overall score is below the readiness threshold ({threshold}).",
+        "nothingToScore": "Nothing in this survey counts towards a score.",
+        "none": "Nothing recorded in this survey stands in the way of readiness."
+      },
+      "levels": {
+        "level": "Level",
+        "count": "Elements",
+        "total": "Total"
+      },
+      "chapters": {
+        "heading": "Scores by chapter",
+        "chapter": "Chapter",
+        "score": "Score"
+      },
+      "noScore": "No score",
+      "findings": {
+        "heading": "Findings",
+        "none": "No findings were raised.",
+        "severity": "Severity",
+        "element": "Element",
+        "level": "Level",
+        "statement": "What the surveyor saw",
+        "noStatement": "No comment"
+      },
+      "severity": {
+        "esr": "ESR",
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      },
+      "elements": {
+        "heading": "All element results",
+        "element": "Element",
+        "level": "Level"
+      },
+      "footer": "{facility} · Mock survey report"
     }
   },
   "committees": {

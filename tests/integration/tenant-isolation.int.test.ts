@@ -83,7 +83,14 @@ import {
   setCommitteeElement,
   updateCommittee,
 } from "@/modules/committees/service";
-import { getSurveyCycle, saveSurveyCycle } from "@/modules/surveys/service";
+import {
+  exportMockSurveyReport,
+  getMockSurvey,
+  getSurveyCycle,
+  listMockSurveys,
+  saveSurveyCycle,
+  startMockSurvey,
+} from "@/modules/surveys/service";
 import {
   archiveTemplate,
   createTemplate,
@@ -107,6 +114,7 @@ import {
   listMemberships,
   listOpenInvitations,
   listUserMemberships,
+  listUserNames,
   loadAccessContext,
   renameFacility,
   revokeInvitation,
@@ -122,6 +130,7 @@ import {
   makeTenant,
   publishDemoEdition,
   submitDemoAssessment,
+  submitDemoMockSurvey,
   uniqueEmail,
   uniqueFrameworkCode,
 } from "./helpers";
@@ -150,6 +159,7 @@ let bCommitteeId: string;
 let bMeetingId: string;
 let bBareMeetingId: string;
 let bRunId: string;
+let bMockSurvey: Awaited<ReturnType<typeof submitDemoMockSurvey>>;
 
 beforeAll(async () => {
   [a, b] = await Promise.all([makeTenant("A"), makeTenant("B")]);
@@ -297,6 +307,12 @@ beforeAll(async () => {
   const aConsultantId = (await createUser(aConsultantEmail)).id;
   await setConsultant(admin, aConsultantEmail, true);
   await assignConsultant(admin, a.tenant.id, a.facility.id, aConsultantId);
+
+  // A locked consultant mock survey with its two reports in each tenant.
+  const aConsultant = (await loadAccessContext(aConsultantId, a.tenant.id))!;
+  const bConsultant = (await loadAccessContext(bConsultantId, b.tenant.id))!;
+  await submitDemoMockSurvey(aConsultant, a.facility.id, sharedFrameworkId);
+  bMockSurvey = await submitDemoMockSurvey(bConsultant, b.facility.id, sharedFrameworkId);
 });
 
 afterAll(disconnectDb);
@@ -617,6 +633,22 @@ describe("service layer with a fooled permission check", () => {
     ]);
   });
 
+  it("cannot read, start or report another tenant's mock surveys, or see its people", async () => {
+    expect(await listMockSurveys(aForged, b.facility.id)).toEqual([]);
+    expect(await getMockSurvey(aForged, bMockSurvey.assessmentId)).toBeNull();
+    await expect(
+      exportMockSurveyReport(aForged, bMockSurvey.assessmentId, { phiAttested: true }),
+    ).rejects.toThrow();
+    await expect(
+      startMockSurvey(aForged, b.facility.id, { frameworkId: sharedFrameworkId }),
+    ).rejects.toThrow();
+    for (const report of bMockSurvey.reports) {
+      expect(await getDownloadUrl(aForged, report.versionId)).toBeNull();
+    }
+    expect((await listUserNames(aForged, [b.ctx.userId, bConsultantId])).size).toBe(0);
+    expect((await listUserNames(a.ctx, [a.ctx.userId])).get(a.ctx.userId)).toBe("Owner A");
+  });
+
   it("sees only its own subscription and audit trail", async () => {
     expect((await getSubscription(a.ctx))?.tenantId).toBe(a.tenant.id);
     const events = await listAuditEvents(a.ctx);
@@ -660,6 +692,7 @@ describe("database layer (RLS) on its own", () => {
     compliance_snapshot: "tenant_id",
     consultant_assignment: "tenant_id",
     service_request: "tenant_id",
+    survey_report: "tenant_id",
   };
 
   it.each(Object.entries(tenantColumn))(

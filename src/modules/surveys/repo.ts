@@ -25,3 +25,35 @@ export function upsertSurveyCycle(
     update: data,
   });
 }
+
+// --- Mock survey reports (M15) ----------------------------------------------------------------
+
+export function listReports(tx: Tx, tenantId: string, assessmentId: string) {
+  return tx.surveyReport.findMany({
+    where: { tenantId, assessmentId },
+    orderBy: { locale: "asc" },
+    select: {
+      locale: true,
+      createdAt: true,
+      createdBy: true,
+      document: {
+        select: {
+          id: true,
+          versions: {
+            orderBy: { version: "desc" },
+            take: 1,
+            select: { id: true, fileName: true, bytes: true },
+          },
+        },
+      },
+    },
+  });
+}
+
+export function insertReport(
+  tx: Tx,
+  tenantId: string,
+  data: { assessmentId: string; locale: string; documentId: string; createdBy: string },
+) {
+  return tx.surveyReport.create({ data: { tenantId, ...data }, select: { id: true } });
+}
