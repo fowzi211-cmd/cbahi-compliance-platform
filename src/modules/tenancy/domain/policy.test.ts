@@ -31,6 +31,7 @@ const matrix: Record<Action, [Cell, Cell, Cell, Cell, Cell, Cell]> = {
   "tracer.run": ["yes", "yes", "ownDept", "assigned", "no", "no"],
   "tracer.manage": ["yes", "yes", "ownDept", "no", "no", "no"],
   "mockSurvey.run": ["no", "internal", "no", "no", "consultant", "no"],
+  "committee.manage": ["yes", "yes", "no", "no", "no", "no"],
   "document.upload": ["yes", "yes", "ownDept", "yes", "no", "no"],
   "document.approve": ["yes", "yes", "no", "no", "no", "no"],
   "capa.create": ["yes", "yes", "ownDept", "no", "no", "no"],
