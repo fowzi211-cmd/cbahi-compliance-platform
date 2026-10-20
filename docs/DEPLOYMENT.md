@@ -6,7 +6,7 @@
 
 ## Shape
 
-One Linux server in a Saudi cloud region runs everything with Docker Compose
+One Linux server runs everything with Docker Compose
 (`deploy/compose.yml`):
 
 | Service     | What it is                                                                           |
@@ -29,16 +29,23 @@ Container Registry. The **Deploy staging** workflow is started by hand: it build
 copies `deploy/` to the server over SSH and runs `deploy/up.sh`, which pulls with the
 workflow's own short-lived token.
 
-### Why this shape
+### Where it runs
 
-- **Data residency (PDPL).** Every byte (database, evidence files, email) stays on one
-  server in a KSA region. Nothing goes to a US-hosted PaaS, mail service or identity provider.
-- **Cheap and easy to throw away.** One small VM (about USD 40 a month in Dammam, covered by
-  Google Cloud's free trial credit), no managed services to wire up. Deleting the VM deletes
-  everything.
-- **Same image as production later.** The app already talks only to `DATABASE_*`, `S3_*` and
-  `SMTP_*`; moving to Cloud SQL, a regional object store and a KSA email provider is a change
-  to environment variables.
+Any Ubuntu 24.04 server with a public IP works; nothing in `deploy/` is provider-specific.
+
+- **Hostinger VPS (chosen by the owner for staging).** Plan **KVM 2** (2 vCPU, 8 GB RAM) or
+  larger. Hostinger has **no data centre in Saudi Arabia or the Gulf**; its nearest VPS
+  locations are Germany, France, the UK and India. Choose **Germany or France** (lowest
+  latency to KSA). This is acceptable for a demo with fictional data only. It is **not** a
+  home for real facility data under the PDPL, which expects data to stay in the Kingdom unless
+  a transfer basis exists.
+- **Google Cloud Dammam (`me-central2`).** The residency option: same setup, data in KSA.
+  Steps in "Alternative: Google Cloud Dammam" below. Production goes to a KSA region in any
+  case.
+
+Why one server: cheap, nothing to wire up, and deleting the server deletes everything. The
+app talks only to `DATABASE_*`, `S3_*` and `SMTP_*`, so moving to managed services later is a
+change to environment variables, not code.
 
 ### Limits (accepted for staging, fixed before production)
 
@@ -51,30 +58,24 @@ workflow's own short-lived token.
 
 ## One-time setup
 
-### 1. Google Cloud server (Dammam, `me-central2`)
+### 1. Hostinger VPS
 
-Create a Google Cloud account and a project with billing enabled
-(https://console.cloud.google.com). Then open **Cloud Shell** (the `>_` icon at the top of
-the console) and paste, replacing `PROJECT_ID`:
+1. In hPanel, buy a **VPS → KVM 2** plan. Location: **Germany** (or France). Operating
+   system: **Plain OS → Ubuntu 24.04**. Set a root password when asked.
+2. Open the VPS in hPanel and note its **IPv4 address** (Overview page).
+3. If the VPS **Firewall** is turned on (VPS → Security → Firewall), allow TCP 22, 80 and
+   443 (and UDP 443).
+4. Open **Browser terminal** (top right of the VPS page) and paste:
 
 ```bash
-gcloud config set project PROJECT_ID
-gcloud services enable compute.googleapis.com
-gcloud compute addresses create mustamir-ip --region=me-central2
-gcloud compute instances create mustamir-staging \
-  --zone=me-central2-a --machine-type=e2-medium \
-  --image-family=ubuntu-2404-lts-amd64 --image-project=ubuntu-os-cloud \
-  --boot-disk-size=30GB --address=mustamir-ip --tags=mustamir-web
-gcloud compute firewall-rules create mustamir-web \
-  --allow=tcp:80,tcp:443,udp:443 --target-tags=mustamir-web
 ssh-keygen -t ed25519 -f ~/mustamir-deploy -N "" -C deploy
-gcloud compute instances add-metadata mustamir-staging --zone=me-central2-a \
-  --metadata=ssh-keys="deploy:$(cat ~/mustamir-deploy.pub)"
-echo "DEPLOY_HOST = $(gcloud compute addresses describe mustamir-ip --region=me-central2 --format='get(address)')"
-echo "DEPLOY_SSH_KEY:"; cat ~/mustamir-deploy
+mkdir -p ~/.ssh && cat ~/mustamir-deploy.pub >> ~/.ssh/authorized_keys
+chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys
+cat ~/mustamir-deploy
 ```
 
-Keep the Cloud Shell tab open for the next step.
+5. Copy the private key it prints (from `-----BEGIN` to `END-----`) into the GitHub secret
+   below, then remove it from the server: `rm ~/mustamir-deploy ~/mustamir-deploy.pub`.
 
 ### 2. GitHub settings
 
@@ -97,11 +98,11 @@ minutes (it installs Docker on the server). The log ends with the app's address,
 example `https://34-166-1-2.sslip.io`.
 
 Open it, create an account (it becomes the owner of a new organization) and set up
-two-step verification. To make that account a platform admin (standards import, tiers):
+two-step verification. To make that account a platform admin (standards import, tiers), run
+in the server's terminal (Hostinger: Browser terminal):
 
 ```bash
-gcloud compute ssh deploy@mustamir-staging --zone=me-central2-a -- \
-  'cd ~/mustamir && sudo docker compose run --rm migrate pnpm platform:admin you@example.com'
+cd ~/mustamir && sudo docker compose run --rm migrate pnpm platform:admin you@example.com
 ```
 
 The demo inbox is `https://mail.<host>`, user `admin`; the password is `MAIL_UI_PASSWORD`
@@ -124,8 +125,9 @@ end, as cookies belong to the old host.
 
 ## Backups
 
-Google Cloud console → **Compute Engine → Snapshots → Create snapshot schedule** (daily,
-keep 7), attached to the `mustamir-staging` disk, in `me-central2`.
+Hostinger: VPS → **Backups & monitoring** (weekly backups are included; take a manual
+snapshot before risky changes). Google Cloud: **Compute Engine → Snapshots → Create snapshot
+schedule** (daily, keep 7) on the `mustamir-staging` disk.
 
 ## Operating
 
@@ -136,6 +138,34 @@ sudo docker compose ps                 # what is running
 sudo docker compose logs -f web worker # logs
 sudo docker compose restart web        # restart one service
 ```
+
+## Alternative: Google Cloud Dammam
+
+Use this instead of the Hostinger step when data must stay in KSA.
+
+Create a Google Cloud account and a project with billing enabled
+(https://console.cloud.google.com). Then open **Cloud Shell** (the `>_` icon at the top of
+the console) and paste, replacing `PROJECT_ID`:
+
+```bash
+gcloud config set project PROJECT_ID
+gcloud services enable compute.googleapis.com
+gcloud compute addresses create mustamir-ip --region=me-central2
+gcloud compute instances create mustamir-staging \
+  --zone=me-central2-a --machine-type=e2-medium \
+  --image-family=ubuntu-2404-lts-amd64 --image-project=ubuntu-os-cloud \
+  --boot-disk-size=30GB --address=mustamir-ip --tags=mustamir-web
+gcloud compute firewall-rules create mustamir-web \
+  --allow=tcp:80,tcp:443,udp:443 --target-tags=mustamir-web
+ssh-keygen -t ed25519 -f ~/mustamir-deploy -N "" -C deploy
+gcloud compute instances add-metadata mustamir-staging --zone=me-central2-a \
+  --metadata=ssh-keys="deploy:$(cat ~/mustamir-deploy.pub)"
+echo "DEPLOY_HOST = $(gcloud compute addresses describe mustamir-ip --region=me-central2 --format='get(address)')"
+echo "DEPLOY_SSH_KEY:"; cat ~/mustamir-deploy
+```
+
+Then continue with "2. GitHub settings" with `DEPLOY_USER` = `deploy`. To run commands on
+the server later: `gcloud compute ssh deploy@mustamir-staging --zone=me-central2-a`.
 
 ## Before production
 
