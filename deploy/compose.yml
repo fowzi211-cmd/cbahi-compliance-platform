@@ -1,0 +1,141 @@
+# Staging / demo deployment on one Linux server (docs/DEPLOYMENT.md). Started by deploy/up.sh,
+# which writes deploy/.env (secrets, generated on the server, never committed) on first run.
+# Only Caddy is reachable from outside: it terminates HTTPS for the app, the file store's
+# signed links and the demo mail inbox. Everything else stays on the private network.
+
+x-app-env: &app-env
+  APP_URL: https://${APP_HOST}
+  DATABASE_URL: postgresql://mustamir_app:${APP_DB_PASSWORD}@postgres:5432/mustamir
+  DATABASE_AUTH_URL: postgresql://mustamir_auth:${AUTH_DB_PASSWORD}@postgres:5432/mustamir
+  DATABASE_SYSTEM_URL: postgresql://mustamir_system:${SYSTEM_DB_PASSWORD}@postgres:5432/mustamir
+  BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+  S3_ENDPOINT: http://seaweedfs:8333
+  S3_PUBLIC_ENDPOINT: https://${FILES_HOST}
+  S3_REGION: me-central-1
+  S3_BUCKET: evidence
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+  STORAGE_DRIVER: s3
+  # Demo: every email is caught by Mailpit (https://mail.<host>). For real delivery, point
+  # these at a provider and set SMTP_USER / SMTP_PASSWORD in deploy/.env.
+  SMTP_HOST: ${SMTP_HOST:-mailpit}
+  SMTP_PORT: ${SMTP_PORT:-1025}
+  SMTP_FROM: ${SMTP_FROM:-Mustamir <no-reply@mustamir.local>}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  EMAIL_TRANSPORT: smtp
+
+x-app: &app
+  image: ${APP_IMAGE:?set by up.sh}
+  restart: unless-stopped
+  environment: *app-env
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      APP_HOST: ${APP_HOST}
+      FILES_HOST: ${FILES_HOST}
+      MAIL_HOST: ${MAIL_HOST}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mustamir
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: mustamir
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mustamir -d mustamir"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.05
+    restart: unless-stopped
+    command: server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
+    volumes:
+      - seaweedfs-data:/data
+      - ./seaweedfs-s3.json:/etc/seaweedfs/s3.json:ro
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://localhost:8333/"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # Creates the private evidence bucket. On later runs the bucket exists and this is a no-op.
+  seaweedfs-init:
+    image: chrislusf/seaweedfs:4.05
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "echo 's3.bucket.create -name evidence' |
+      weed shell -master=seaweedfs:9333 -filer=seaweedfs:8888; exit 0"
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    environment:
+      # The inbox shows invitation links, so it is behind a login.
+      MP_UI_AUTH: admin:${MAIL_UI_PASSWORD}
+      MP_MAX_MESSAGES: 2000
+
+  # Database roles, migrations and the fictional DEMO-AMB framework, before the app starts.
+  migrate:
+    <<: *app
+    restart: "no"
+    # Only this step gets the schema owner's password.
+    environment:
+      <<: *app-env
+      DATABASE_ADMIN_URL: postgresql://mustamir:${POSTGRES_PASSWORD}@postgres:5432/mustamir
+    command: ["sh", "-c", "pnpm db:deploy && pnpm db:seed"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    <<: *app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      seaweedfs-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  worker:
+    <<: *app
+    command: ["pnpm", "worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:
+  seaweedfs-data:
+  caddy-data:
+  caddy-config:

@@ -24,6 +24,24 @@ describe("parseEnv", () => {
     expect(env.SMTP_PORT).toBe(1025);
   });
 
+  it("leaves the optional deployment settings unset", () => {
+    const env = parseEnv(valid);
+    expect(env.S3_PUBLIC_ENDPOINT).toBeUndefined();
+    expect(env.SMTP_USER).toBeUndefined();
+  });
+
+  it("treats an empty optional setting as unset", () => {
+    const env = parseEnv({ ...valid, S3_PUBLIC_ENDPOINT: "", SMTP_USER: "", SMTP_PASSWORD: "" });
+    expect(env.S3_PUBLIC_ENDPOINT).toBeUndefined();
+    expect(env.SMTP_PASSWORD).toBeUndefined();
+  });
+
+  it("rejects a public storage endpoint that is not a url", () => {
+    expect(() => parseEnv({ ...valid, S3_PUBLIC_ENDPOINT: "files.example" })).toThrow(
+      /S3_PUBLIC_ENDPOINT/,
+    );
+  });
+
   it("rejects a non-postgres database url", () => {
     expect(() => parseEnv({ ...valid, DATABASE_URL: "mysql://x" })).toThrow(/DATABASE_URL/);
   });

@@ -18,11 +18,12 @@ export const SIGNED_URL_TTL_SECONDS = 300;
 export const memoryObjects = new Map<string, { bytes: Uint8Array; contentType: string }>();
 
 let client: S3Client | undefined;
+let publicClient: S3Client | undefined;
 
-function s3() {
+function createS3(endpoint: string) {
   const config = env();
-  client ??= new S3Client({
-    endpoint: config.S3_ENDPOINT,
+  return new S3Client({
+    endpoint,
     region: config.S3_REGION,
     forcePathStyle: true,
     credentials: {
@@ -30,7 +31,18 @@ function s3() {
       secretAccessKey: config.S3_SECRET_ACCESS_KEY,
     },
   });
-  return client;
+}
+
+function s3() {
+  return (client ??= createS3(env().S3_ENDPOINT));
+}
+
+// A signature covers the host, so a link for the browser must be signed for the address the
+// browser uses. When deployed, the server talks to the store on a private network address
+// and browsers reach it through the public proxy (docs/DEPLOYMENT.md).
+function presigner() {
+  const config = env();
+  return (publicClient ??= config.S3_PUBLIC_ENDPOINT ? createS3(config.S3_PUBLIC_ENDPOINT) : s3());
 }
 
 /**
@@ -75,7 +87,7 @@ export async function signedDownloadUrl(key: string, fileName: string, contentTy
     return `memory://${key}?expires=${SIGNED_URL_TTL_SECONDS}`;
   }
   return getSignedUrl(
-    s3(),
+    presigner(),
     new GetObjectCommand({
       Bucket: env().S3_BUCKET,
       Key: key,

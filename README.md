@@ -10,6 +10,7 @@ compliant with accreditation standards: before their first survey and between su
 - Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - Roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - Conventions for contributors and AI sessions: [`CLAUDE.md`](CLAUDE.md)
+- Staging deployment: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
 
 ## Run locally
 

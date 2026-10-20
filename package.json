@@ -17,6 +17,7 @@
     "i18n:check": "node scripts/check-i18n.mjs",
     "db:setup": "prisma db execute --file scripts/db/dev-roles.sql && prisma migrate deploy",
     "db:migrate": "prisma migrate dev",
+    "db:deploy": "tsx scripts/db/provision-roles.ts && prisma migrate deploy",
     "db:generate": "prisma generate",
     "test:int": "vitest run --config vitest.int.config.mts",
     "postinstall": "prisma generate",
