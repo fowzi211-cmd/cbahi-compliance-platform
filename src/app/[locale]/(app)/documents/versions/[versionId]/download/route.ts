@@ -1,4 +1,5 @@
 import { routing, type Locale } from "@/i18n/routing";
+import { RateLimitedError } from "@/lib/errors";
 import { requireAppContext } from "@/lib/session";
 import { getDownloadUrl } from "@/modules/documents/service";
 
@@ -13,7 +14,16 @@ export async function GET(
     ? (locale as Locale)
     : routing.defaultLocale;
   const ctx = await requireAppContext(lang);
-  const url = await getDownloadUrl(ctx.access, versionId);
+  let url: string | null;
+  try {
+    url = await getDownloadUrl(ctx.access, versionId);
+  } catch (error) {
+    if (!(error instanceof RateLimitedError)) throw error;
+    return new Response("Too many downloads. Try again later.", {
+      status: 429,
+      headers: { "retry-after": String(error.retryAfterSeconds), "cache-control": "no-store" },
+    });
+  }
   if (!url) return new Response("Not found", { status: 404 });
   return new Response(null, {
     status: 303,

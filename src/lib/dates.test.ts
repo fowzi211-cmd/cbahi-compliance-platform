@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { daysBetween, formatDate, formatGregorian, formatHijri, toRiyadhDay } from "./dates";
+import {
+  daysBetween,
+  formatDate,
+  formatGregorian,
+  formatHijri,
+  startOfRiyadhDay,
+  toRiyadhDay,
+} from "./dates";
 
 describe("formatGregorian", () => {
   const date = new Date("2026-10-19T12:00:00Z");
@@ -48,6 +55,16 @@ describe("toRiyadhDay", () => {
     ["2026-12-31T21:30:00Z", "2027-01-01"],
   ])("%s is %s in Riyadh", (iso, day) => {
     expect(toRiyadhDay(new Date(iso))).toBe(day);
+  });
+});
+
+describe("startOfRiyadhDay", () => {
+  it.each([
+    ["2026-10-19", "2026-10-18T21:00:00.000Z"],
+    ["2027-01-01", "2026-12-31T21:00:00.000Z"],
+  ])("%s starts at %s", (day, iso) => {
+    expect(startOfRiyadhDay(day).toISOString()).toBe(iso);
+    expect(toRiyadhDay(startOfRiyadhDay(day))).toBe(day);
   });
 });
 

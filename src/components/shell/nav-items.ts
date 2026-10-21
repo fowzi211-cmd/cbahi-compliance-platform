@@ -7,6 +7,7 @@ import {
   Library,
   ListChecks,
   Route,
+  ScrollText,
   Settings,
   UserCog,
   Users,
@@ -24,6 +25,7 @@ export type NavKey =
   | "committees"
   | "requests"
   | "people"
+  | "auditLog"
   | "settings";
 
 export type NavItem = {
@@ -43,5 +45,6 @@ export const navItems: NavItem[] = [
   { key: "committees", href: "/committees", icon: Users },
   { key: "requests", href: "/requests", icon: LifeBuoy },
   { key: "people", href: "/people", icon: UserCog },
+  { key: "auditLog", href: "/audit", icon: ScrollText },
   { key: "settings", href: "/settings", icon: Settings },
 ];

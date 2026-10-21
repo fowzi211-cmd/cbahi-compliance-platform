@@ -57,6 +57,18 @@ export async function putObject(key: string, bytes: Uint8Array, contentType: str
   );
 }
 
+/** The stored bytes, for server-side work such as a tenant's data export. */
+export async function getObject(key: string): Promise<Uint8Array> {
+  if (env().STORAGE_DRIVER === "memory") {
+    const object = memoryObjects.get(key);
+    if (!object) throw new Error(`No object at ${key}`);
+    return object.bytes;
+  }
+  const result = await s3().send(new GetObjectCommand({ Bucket: env().S3_BUCKET, Key: key }));
+  if (!result.Body) throw new Error(`No object at ${key}`);
+  return result.Body.transformToByteArray();
+}
+
 export async function deleteObject(key: string) {
   if (env().STORAGE_DRIVER === "memory") {
     memoryObjects.delete(key);

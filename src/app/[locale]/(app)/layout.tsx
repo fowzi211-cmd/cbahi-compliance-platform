@@ -4,6 +4,7 @@ import { AppShellFallback } from "@/components/shell/app-shell-fallback";
 import type { NavKey } from "@/components/shell/nav-items";
 import type { Locale } from "@/i18n/routing";
 import { requireAppContext } from "@/lib/session";
+import { canViewAuditLog } from "@/modules/governance/service";
 import { countUnread } from "@/modules/notifications/service";
 import { allowed } from "@/modules/tenancy/service";
 
@@ -36,6 +37,7 @@ async function AppFrame({
     allowed(ctx.access, "dashboard.view", { ...scope, departmentId: null })
       ? []
       : (["mockSurveys"] as const)),
+    ...((await canViewAuditLog(ctx.access)) ? [] : (["auditLog"] as const)),
   ];
   const unreadNotifications = await countUnread(ctx.access);
 

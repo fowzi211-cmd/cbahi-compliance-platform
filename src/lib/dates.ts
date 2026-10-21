@@ -64,6 +64,11 @@ export function toRiyadhDay(date: Date): string {
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
+// The instant a Saudi calendar day (YYYY-MM-DD) begins. Saudi Arabia keeps UTC+3 all year.
+export function startOfRiyadhDay(day: string): Date {
+  return new Date(`${day}T00:00:00+03:00`);
+}
+
 // Whole calendar days from `from` to `to`, counted in Saudi time (negative when `to` is past).
 export function daysBetween(from: Date, to: Date): number {
   const start = Date.parse(`${toRiyadhDay(from)}T00:00:00Z`);

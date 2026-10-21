@@ -20,6 +20,7 @@ export const actions = [
   "capa.closeOwn",
   "dashboard.view",
   "audit.view",
+  "data.export",
 ] as const;
 export type Action = (typeof actions)[number];
 
@@ -71,6 +72,8 @@ export const policyMatrix: Record<PolicyRole, Partial<Record<Action, Scope>>> = 
     "capa.closeOwn": "ownItem",
     "dashboard.view": "facility",
     "audit.view": "facility",
+    // The tenant's copy of all its data (PDPL portability): the owner's decision alone.
+    "data.export": "facility",
   },
   quality_manager: {
     "membership.manage": "facility",

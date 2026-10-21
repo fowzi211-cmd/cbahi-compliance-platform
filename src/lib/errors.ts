@@ -16,3 +16,14 @@ export class DomainError<Code extends string = string> extends Error {
     this.name = "DomainError";
   }
 }
+
+/** Thrown when a caller has used up a rate limit. Forms show "try again later". */
+export class RateLimitedError extends Error {
+  constructor(
+    readonly rule: string,
+    readonly retryAfterSeconds: number,
+  ) {
+    super(`Rate limited: ${rule}`);
+    this.name = "RateLimitedError";
+  }
+}

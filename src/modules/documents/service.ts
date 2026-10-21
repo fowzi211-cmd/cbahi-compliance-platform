@@ -5,6 +5,7 @@ import { withTenant, type Tx } from "@/lib/db";
 import { toRiyadhDay } from "@/lib/dates";
 import { DomainError, ForbiddenError } from "@/lib/errors";
 import { deleteObject, putObject, signedDownloadUrl, storageKey } from "@/lib/storage";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import { recordAudit } from "@/modules/audit/service";
 import { getFacilityElement } from "@/modules/standards/service";
 import {
@@ -260,6 +261,7 @@ export async function getDownloadUrl(ctx: AccessContext, versionId: string) {
   if (!z.uuid().safeParse(versionId).success) return null;
   const version = await withTenant(ctx, (tx) => repo.findVersion(tx, ctx.tenantId, versionId));
   if (!version || !isFacilityMember(ctx, version.document.facilityId)) return null;
+  await consumeRateLimit("download", ctx.userId);
   return signedDownloadUrl(version.storageKey, version.fileName, version.contentType);
 }
 
@@ -307,6 +309,7 @@ export async function createDocument(
     throw new DomainError<DocumentError>("unknownDepartment");
   }
   const elements: { id: string; code: string }[] = [];
+  await consumeRateLimit("upload", ctx.userId);
   for (const elementId of new Set(filing.elementIds ?? [])) {
     const element = await getFacilityElement(ctx, facilityId, elementId);
     if (!element) throw new DomainError<DocumentError>("unknownElement");
@@ -503,6 +506,7 @@ export async function uploadVersion(
     throw new ForbiddenError("document.upload");
   }
   if (document.retiredAt) throw new DomainError<DocumentError>("documentRetired");
+  await consumeRateLimit("upload", ctx.userId);
   const file = await prepareFile(data);
   const versionId = uuidv7();
   const key = storageKey(ctx.tenantId, document.facilityId, "documents", documentId, versionId);

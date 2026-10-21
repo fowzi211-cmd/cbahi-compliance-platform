@@ -2,6 +2,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
 import type { FacilityOption } from "@/lib/session";
+import { sessionPolicy } from "@/modules/identity/service";
 import { FacilitySwitcher } from "./facility-switcher";
 import { LocaleSwitcher } from "./locale-switcher";
 import { MobileNav } from "./mobile-nav";
@@ -42,7 +43,10 @@ export async function AppShell({
       >
         {t("skipToContent")}
       </a>
-      <SessionKeepAlive />
+      <SessionKeepAlive
+        idleSeconds={sessionPolicy.idleSeconds}
+        refreshSeconds={sessionPolicy.refreshSeconds}
+      />
       <header className="border-border bg-background/95 sticky top-0 z-30 flex h-16 items-center gap-3 border-b px-4 backdrop-blur">
         <MobileNav hidden={hiddenNav} />
         <Link href="/" className="text-primary text-xl font-bold">

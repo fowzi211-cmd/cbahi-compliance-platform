@@ -24,6 +24,7 @@ export const envSchema = z.object({
   EMAIL_TRANSPORT: z.enum(["smtp", "memory"]).default("smtp"),
   PDF_RENDERER: z.enum(["playwright", "fake"]).default("playwright"),
   PDF_CHROMIUM_PATH: z.string().min(1).optional(),
+  RATE_LIMITS: z.enum(["on", "off"]).default("on"),
 });
 
 export type Env = z.infer<typeof envSchema>;
