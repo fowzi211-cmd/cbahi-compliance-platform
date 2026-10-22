@@ -47,3 +47,6 @@ next-env.d.ts
 /blob-report/
 /playwright/.cache/
 /src/generated/
+
+# demo tenant sign-in details written by `pnpm db:seed`
+/.demo-credentials.json

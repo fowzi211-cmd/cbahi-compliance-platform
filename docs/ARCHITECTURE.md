@@ -469,6 +469,11 @@ The policy lives in one place, `tenancy/domain/policy.ts`, as `can(ctx, action, 
 - **Rate limits:** Better Auth limits sign-in (10/min), sign-up (5/min) and TOTP and backup-code checks (10 and 5/min) per address, in memory, in production builds; the reverse proxy must overwrite `X-Forwarded-For`. The app's own limits (`lib/rate-limit.ts`) are per person and kept in Postgres (`rate_limit_bucket`, reachable only through the `SECURITY DEFINER` function `app_rate_limit_hit`), so all instances share them: uploads 30 per 10 minutes, download links 120 per 10 minutes, mock survey reports 10 an hour, data exports 3 an hour, invitations 30 an hour, service requests 10 an hour. A refusal shows "try again later" (or HTTP 429 on the download route). `RATE_LIMITS=off` turns the app's limits off for local experiments.
 - **Session timeout:** unchanged rules (30 minutes idle, 12 hours absolute). The page now warns 2 minutes before the idle limit, offers "Stay signed in", and signs out at the limit, so a screen left open in a clinic stops showing compliance data.
 
+**As built in M17:**
+
+- **Demo tenant** (`prisma/seed/demo-tenant.ts`, run by `pnpm db:seed`, skipped when `NODE_ENV=production`): the fictional «مستوصف النور التجريبي» on the Hybrid plan, with five departments, a person for every role and six months of history. People sign up through Better Auth; those who need a second factor are enrolled in TOTP, and every sign-in detail goes to the gitignored `.demo-credentials.json` (`pnpm demo:code` prints current codes). The history is lived, not inserted: the seed calls the services day by day with `now`, so the immutability triggers, the scoring and CAPA rules and the nightly snapshot apply as in production. Columns stamped with the database's `now()` are then moved to the simulated time through the owner connection with triggers off; `audit_event` and `compliance_snapshot` are left alone (the audit time is part of the hash chain). See [ACCEPTANCE.md](ACCEPTANCE.md).
+- **Trend table:** with months of nightly points the table view scrolls, so its container is a focusable, labelled region (axe `scrollable-region-focusable`).
+
 ## 7. i18n, RTL and dates
 
 - `ar` is the default and the first locale. All UI strings live in `messages/{ar,en}.json`. A CI check fails when the two files have different keys.

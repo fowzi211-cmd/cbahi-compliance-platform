@@ -23,6 +23,7 @@
     "db:seed": "tsx prisma/seed/index.ts",
     "platform:admin": "tsx scripts/platform-admin.ts",
     "audit:verify": "tsx scripts/audit-verify.ts",
+    "demo:code": "tsx scripts/demo-code.ts",
     "worker": "tsx src/worker/index.ts",
     "jobs:run": "tsx scripts/run-jobs.ts"
   },
