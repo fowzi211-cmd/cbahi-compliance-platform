@@ -14,6 +14,7 @@ const programsByFacilityType: Record<string, readonly Program[]> = {
   dental: ["dental", "ambulatory"],
   laboratory: ["lab"],
   home_care: ["home_health"],
+  seasonal_hospital: ["seasonal_hospital"],
   other: [],
 };
 

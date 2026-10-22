@@ -81,8 +81,10 @@ badge.
 | `code`               | yes         | Capital Latin letters, digits, `.`, `_`, `-`; 2–32 characters. Same code across editions. |
 | `edition`            | yes         | Up to 32 characters, e.g. `2026.1`. A code + edition pair can only be imported once.      |
 | `name_ar`, `name_en` | one of them |                                                                                           |
-| `program`            | yes         | `ambulatory`, `primary`, `lab`, `blood_bank`, `dental`, `home_health`, `hospital`.        |
+| `program`            | yes         | One of the programme codes listed below the table.                                        |
 | `rollup_config`      | no          | JSON, see below. Defaults to weighted averages and ESR = MET/NM.                          |
+
+Programme codes, one per CBAHI national-standards programme: `hospital`, `primary`, `lab`, `blood_bank`, `ambulatory`, `dental`, `home_health`, `acs` (acute coronary syndrome services), `seasonal_hospital`. Codes for programmes CBAHI is still preparing are accepted already: `mental_health`, `diabetes`, `stroke`, `rehabilitation`, `oncology`, `dialysis`.
 
 ### `scale` (optional; default MET / PM / NM / NA)
 
