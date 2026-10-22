@@ -319,7 +319,13 @@ async function TrendPanel({ locale, trend }: { locale: Locale; trend: FrameworkT
           />
           <details className="text-sm">
             <summary className="text-primary cursor-pointer font-medium">{t("table")}</summary>
-            <div className="mt-2 max-h-64 overflow-auto">
+            {/* Six months of nights make this scroll; keyboard users must be able to reach it. */}
+            <div
+              className="mt-2 max-h-64 overflow-auto"
+              role="region"
+              aria-label={t("table")}
+              tabIndex={0}
+            >
               <table className="w-full text-start">
                 <thead>
                   <tr className="text-muted-foreground">
