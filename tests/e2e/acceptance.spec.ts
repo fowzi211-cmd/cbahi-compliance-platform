@@ -177,7 +177,7 @@ test.describe("the demo polyclinic", () => {
     await page.goto("/ar/tracers");
     const card = page.locator("li[data-template]").filter({ hasText: "جولة الصيدلية الأسبوعية" });
     // A run left open by an interrupted earlier attempt is continued, not restarted.
-    const open = card.getByRole("button", { name: "متابعة الجولة" });
+    const open = card.getByRole("link", { name: "متابعة الجولة" });
     if (await open.count()) await open.click();
     else await card.getByRole("button", { name: "بدء جولة" }).click();
     await expect(page).toHaveURL(/\/ar\/tracers\/runs\/[0-9a-f-]+/);

@@ -20,7 +20,7 @@ cp .env.example .env
 docker compose up -d      # PostgreSQL :5432, S3 storage :8333, Mailpit :1025 / UI :8025
 pnpm install
 pnpm db:setup             # database roles + migrations
-pnpm db:seed              # fictional DEMO-AMB framework for the standards library
+pnpm db:seed              # fictional DEMO-AMB framework and the demo polyclinic (about a minute)
 pnpm dev                  # http://localhost:3000
 ```
 
@@ -46,6 +46,44 @@ Local services:
 | Mailpit    | Catches outgoing email                   | SMTP `localhost:1025`, UI `http://localhost:8025` |
 
 Stop everything with `docker compose down` (add `-v` to wipe data).
+
+## Try the demo polyclinic
+
+`pnpm db:seed` also creates «مستوصف النور التجريبي» (Al-Noor Demo Polyclinic), a fictional
+polyclinic on the Hybrid plan with five departments, a person for every role and six months of
+history: self-assessments, weekly tracers, corrective actions, documents and a consultant's
+mock survey. Its readiness climbs, dips when nursing slips, recovers, and ends "not ready"
+because an ESR element lapsed last week. [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md) tells the
+whole story.
+
+Everyone's password and email are in `.demo-credentials.json` (written by the seed, never
+committed). `pnpm demo:code` prints them with the current authenticator code for the people who
+need one, so you can sign in without an authenticator app:
+
+```bash
+pnpm demo:code            # everyone
+pnpm demo:code quality    # just the quality manager
+```
+
+A walk through it, at http://localhost:3000:
+
+1. **Dashboard.** Sign in as `quality@demo.mustamir.example` with the password and the code from
+   `pnpm demo:code quality`. The dashboard shows "not ready", the lapsed ESR element, scores per
+   chapter and department, one overdue action, the survey countdown and the six-month trend with
+   the consultant's line. Switch to English from the header.
+2. **History.** Open **Assessments** (four locked self-assessments), **Tracers** (four templates
+   and their runs), **Findings** (filter by status) and **Documents** (a revised procedure and one
+   waiting for approval).
+3. **A tracer from a phone.** Open the browser's device toolbar, go to **Tracers** and start the
+   weekly pharmacy tracer: one element per screen, then review and submit.
+4. **Consultant.** Sign in as `consultant@demo.mustamir.example` and open **Mock surveys** to
+   download the findings report in Arabic or English.
+5. **Other roles.** `nursing.head@`, `pharmacy.head@`, `infection.head@`, `staff@` and `viewer@`
+   (same domain) see what their role allows. `owner@` manages settings, people and the data export;
+   `platform.admin@` opens http://localhost:3000/ar/platform.
+
+The demo is not created when `NODE_ENV=production`. To start it again from scratch, wipe the
+local data with `docker compose down -v`, then `docker compose up -d && pnpm db:setup && pnpm db:seed`.
 
 ## Tests and checks
 

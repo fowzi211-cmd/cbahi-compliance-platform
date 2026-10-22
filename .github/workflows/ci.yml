@@ -87,7 +87,7 @@ jobs:
       # Document uploads and signed downloads need the S3-compatible store and its bucket.
       - run: docker compose up -d --wait seaweedfs && docker compose run --rm seaweedfs-init
       - run: pnpm db:setup
-      # The library e2e tests browse the fictional DEMO-AMB framework.
+      # The fictional DEMO-AMB framework and the demo tenant the acceptance suite signs in to.
       - run: pnpm db:seed
       - run: pnpm build
       - run: pnpm test:e2e

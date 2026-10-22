@@ -54,7 +54,8 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["src/worker/**/*.ts", "tests/integration/**/*.ts"],
+    // The demo seed runs the nightly snapshot for its own tenant on each simulated day.
+    files: ["src/worker/**/*.ts", "tests/integration/**/*.ts", "prisma/seed/**/*.ts"],
     rules: {
       "no-restricted-imports": [
         "error",

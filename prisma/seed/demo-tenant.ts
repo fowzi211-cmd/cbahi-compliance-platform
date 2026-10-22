@@ -22,7 +22,11 @@ import {
   transitionCapaItem,
 } from "@/modules/findings/service";
 import { markEmailVerified, setPlatformAdmin } from "@/modules/identity/service";
-import { assignConsultant, setConsultant, updateSubscription } from "@/modules/subscriptions/service";
+import {
+  assignConsultant,
+  setConsultant,
+  updateSubscription,
+} from "@/modules/subscriptions/service";
 import {
   exportMockSurveyReport,
   saveSurveyCycle,
@@ -235,7 +239,9 @@ export async function seedDemoTenant(): Promise<"created" | "exists" | "skipped"
       where: { frameworkId: framework.id },
       select: { id: true, code: true, isEsr: true, departmentTypes: true },
     }),
-  ).then((rows) => rows.map(({ departmentTypes, ...e }) => ({ ...e, departments: departmentTypes })));
+  ).then((rows) =>
+    rows.map(({ departmentTypes, ...e }) => ({ ...e, departments: departmentTypes })),
+  );
   const level = makeModel(elements);
   const byId = new Map(elements.map((e) => [e.id, e]));
 
@@ -537,11 +543,43 @@ export async function seedDemoTenant(): Promise<"created" | "exists" | "skipped"
 
     if (day === 7) {
       const when = mark(at(7, 11));
-      const templates: [keyof typeof ctx, string, string, DepartmentKey | null, number, "weekly" | "monthly", number][] = [
-        ["nursingHead", "جولة التمريض الأسبوعية", "Weekly nursing tracer", "nursing", 4, "weekly", 10],
-        ["pharmacyHead", "جولة الصيدلية الأسبوعية", "Weekly pharmacy tracer", "pharmacy", 3, "weekly", 12],
+      const templates: [
+        keyof typeof ctx,
+        string,
+        string,
+        DepartmentKey | null,
+        number,
+        "weekly" | "monthly",
+        number,
+      ][] = [
+        [
+          "nursingHead",
+          "جولة التمريض الأسبوعية",
+          "Weekly nursing tracer",
+          "nursing",
+          4,
+          "weekly",
+          10,
+        ],
+        [
+          "pharmacyHead",
+          "جولة الصيدلية الأسبوعية",
+          "Weekly pharmacy tracer",
+          "pharmacy",
+          3,
+          "weekly",
+          12,
+        ],
         ["quality", "جولة الجودة الأسبوعية", "Weekly quality walk", null, 5, "weekly", 14],
-        ["infectionHead", "جولة مكافحة العدوى الشهرية", "Monthly infection control tracer", "infection_control", 4, "monthly", 20],
+        [
+          "infectionHead",
+          "جولة مكافحة العدوى الشهرية",
+          "Monthly infection control tracer",
+          "infection_control",
+          4,
+          "monthly",
+          20,
+        ],
       ];
       for (const [who, nameAr, nameEn, department, sampleSize, frequency, first] of templates) {
         const id = await createTemplate(
@@ -566,7 +604,10 @@ export async function seedDemoTenant(): Promise<"created" | "exists" | "skipped"
       if (day < tracer.first || (day - tracer.first) % tracer.every !== 0) continue;
       if (fullAssessmentDays.includes(day)) continue;
       const who = ctx[tracer.who];
-      const runId = await startRun(who, tracer.id, mark(at(day, 10)),
+      const runId = await startRun(
+        who,
+        tracer.id,
+        mark(at(day, 10)),
         createHash("sha256").update(`${tracer.id}:${day}`).digest("hex").slice(0, 32),
       );
       await score(who, runId, day, [10.25, 11.5]);
@@ -628,11 +669,17 @@ export async function seedDemoTenant(): Promise<"created" | "exists" | "skipped"
     people: Object.fromEntries(
       (Object.keys(people) as PersonKey[]).map((key) => [
         key,
-        { email: accounts[key].email, name: accounts[key].name, totpSecret: accounts[key].totpSecret },
+        {
+          email: accounts[key].email,
+          name: accounts[key].name,
+          totpSecret: accounts[key].totpSecret,
+        },
       ]),
     ) as DemoCredentials["people"],
   };
-  await writeFile(demoCredentialsFile, `${JSON.stringify(credentials, null, 2)}\n`, { mode: 0o600 });
+  await writeFile(demoCredentialsFile, `${JSON.stringify(credentials, null, 2)}\n`, {
+    mode: 0o600,
+  });
   return "created";
 }
 
@@ -727,9 +774,7 @@ type Sheet = Awaited<ReturnType<typeof getAssessmentSheet>>;
 function scoredElements(sheet: Sheet) {
   if (!sheet) throw new Error("Assessment not found.");
   return sheet.chapters.flatMap((c) =>
-    c.standards.flatMap((s) =>
-      s.elements.map((e) => ({ id: e.id, code: e.code, isEsr: e.isEsr })),
-    ),
+    c.standards.flatMap((s) => s.elements.map((e) => ({ id: e.id, code: e.code, isEsr: e.isEsr }))),
   );
 }
 

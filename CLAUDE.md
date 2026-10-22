@@ -29,12 +29,12 @@ pnpm i18n:check             # ar/en message keys and placeholders match
 pnpm db:setup               # create local DB roles + apply migrations (after compose up)
 pnpm db:migrate             # prisma migrate dev (new migration from schema changes)
 pnpm test:int               # vitest integration against <db>_test (needs docker postgres)
-pnpm db:seed                # fictional DEMO-AMB framework (idempotent)
+pnpm db:seed                # fictional DEMO-AMB framework + demo tenant with 6 months of history (idempotent)
 pnpm platform:admin <email> # grant the platform-admin flag (add --revoke to remove)
 pnpm worker                 # pg-boss worker: reminders 06:00, digest 07:00, email every minute, snapshots 23:50, signals 23:55
 pnpm jobs:run <job> [--now ISO]  # run reminders|deliver|digest|snapshots|signals once (fake clock for tests)
 pnpm audit:verify           # verify every audit hash chain (exit 1 if one is broken)
-# added by later milestones: demo tenant seed (M17)
+pnpm demo:code [person]     # demo tenant sign-ins and current authenticator codes
 pnpm check                  # lint + typecheck + format + i18n parity + unit + int
 ```
 
