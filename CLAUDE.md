@@ -33,6 +33,7 @@ pnpm db:seed                # fictional DEMO-AMB framework (idempotent)
 pnpm platform:admin <email> # grant the platform-admin flag (add --revoke to remove)
 pnpm worker                 # pg-boss worker: reminders 06:00, digest 07:00, email every minute, snapshots 23:50, signals 23:55
 pnpm jobs:run <job> [--now ISO]  # run reminders|deliver|digest|snapshots|signals once (fake clock for tests)
+pnpm audit:verify           # verify every audit hash chain (exit 1 if one is broken)
 # added by later milestones: demo tenant seed (M17)
 pnpm check                  # lint + typecheck + format + i18n parity + unit + int
 ```

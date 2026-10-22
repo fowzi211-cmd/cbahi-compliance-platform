@@ -1319,3 +1319,14 @@ model SurveyReport {
   @@index([tenantId, assessmentId])
   @@map("survey_report")
 }
+
+// M16: fixed-window counters for the app's own rate limits (uploads, exports, invitations).
+// Not tenant-owned: a key names a person or an address. The app role cannot read or write it
+// directly; it calls `app_rate_limit_hit()`, which counts and answers in one statement.
+model RateLimitBucket {
+  key         String   @id
+  windowStart DateTime @map("window_start") @db.Timestamptz(6)
+  count       Int
+
+  @@map("rate_limit_bucket")
+}

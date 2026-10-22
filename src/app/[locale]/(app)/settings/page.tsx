@@ -1,12 +1,15 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Download } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
-import { Link } from "@/i18n/navigation";
+import { Link, getPathname } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { formatDate } from "@/lib/dates";
 import { requireAppContext } from "@/lib/session";
+import { canExportData } from "@/modules/governance/service";
 import { getSubscriptionOverview } from "@/modules/subscriptions/service";
 import { TierBadge } from "@/modules/subscriptions/ui/Badges";
 import { onboardingSteps } from "@/modules/tenancy/service";
@@ -21,7 +24,10 @@ export async function generateMetadata({
 
 // Facility settings are the onboarding steps, reachable at any time after setup. The step
 // pages check the owner's permission themselves.
-export default async function SettingsPage({ params }: PageProps<"/[locale]/settings">) {
+export default async function SettingsPage({
+  params,
+  searchParams,
+}: PageProps<"/[locale]/settings">) {
   const { locale } = await params;
   setRequestLocale(locale as Locale);
   const t = await getTranslations();
@@ -57,6 +63,9 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
       </Card>
       <Suspense>
         <Subscription locale={locale as Locale} />
+      </Suspense>
+      <Suspense>
+        <DataExport locale={locale as Locale} searchParams={searchParams} />
       </Suspense>
     </div>
   );
@@ -123,6 +132,38 @@ async function Subscription({ locale }: { locale: Locale }) {
         )}
         <p className="text-muted-foreground text-sm">{t("consultantsHint")}</p>
       </div>
+    </Card>
+  );
+}
+
+/**
+ * The organization's data export (owner of every facility only). A plain form POST: the
+ * route answers with the ZIP as a download, or comes back here with the reason it refused.
+ */
+async function DataExport({
+  locale,
+  searchParams,
+}: {
+  locale: Locale;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const t = await getTranslations({ locale, namespace: "settings.export" });
+  const ctx = await requireAppContext(locale);
+  if (!(await canExportData(ctx.access))) return null;
+  const { export: refused } = await searchParams;
+  return (
+    <Card id="export" className="flex flex-col gap-4" data-testid="data-export">
+      <CardTitle>{t("title")}</CardTitle>
+      <CardDescription>{t("body")}</CardDescription>
+      {refused === "rateLimited" || refused === "forbidden" ? (
+        <Alert tone="danger">{t(refused)}</Alert>
+      ) : null}
+      <form method="post" action={getPathname({ href: "/settings/export", locale })}>
+        <Button type="submit" variant="outline">
+          <Download aria-hidden />
+          {t("button")}
+        </Button>
+      </form>
     </Card>
   );
 }

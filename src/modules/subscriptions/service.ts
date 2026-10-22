@@ -2,6 +2,7 @@ import { z } from "zod";
 import { withSystem, withTenant, type TenantContext, type Tx } from "@/lib/db";
 import { toRiyadhDay } from "@/lib/dates";
 import { DomainError, ForbiddenError } from "@/lib/errors";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import { recordAudit, recordPlatformAudit } from "@/modules/audit/service";
 import { allowed, getFacility, type AccessContext } from "@/modules/tenancy/service";
 import {
@@ -159,6 +160,7 @@ export async function createServiceRequest(
   }
   const data = newRequestInput.parse(input);
   if (!(await getFacility(ctx, facilityId))) throw new DomainError<SubscriptionError>("notFound");
+  await consumeRateLimit("serviceRequest", ctx.userId);
   return withTenant(ctx, async (tx) => {
     const row = await repo.insertRequest(tx, {
       tenantId: ctx.tenantId,

@@ -59,6 +59,7 @@ src/
     notifications/  notification service + channels (in-app, email; SMS/WhatsApp later)
     subscriptions/  tiers, feature gates, consultant assignment, service requests, struggle signal
     audit/          append-only audit log
+    governance/     organization-wide oversight (M16): audit log viewer, tenant data export
   lib/              db (Prisma + tenant context), auth, i18n, storage, jobs, dates, pdf
   worker/           job registration (imports module job handlers)
 ```
@@ -440,6 +441,7 @@ erDiagram
 | CAPA: close own item                   | ✓     | ✓           | ✓         | ✓            | –             | –      |
 | Dashboards and reports                 | ✓     | ✓           | own dept  | own dept     | ✓             | ✓      |
 | Audit log view                         | ✓     | ✓           | –         | –            | –             | –      |
+| Data export (whole organization)       | ✓     | –           | –         | –            | –             | –      |
 
 \* Only on assigned Hybrid facilities. The platform super-admin manages frameworks, tiers and assignments and has no default access to tenant data. Support access must be granted explicitly per tenant and is time-limited and audited.
 
@@ -457,6 +459,15 @@ The policy lives in one place, `tenancy/domain/policy.ts`, as `can(ctx, action, 
 - **PDPL and data minimization:** no patient fields exist anywhere in the schema. Uploads require an attestation checkbox. The server extracts text (PDF and DOCX) and scans it for Saudi national ID or Iqama numbers (10 digits starting with 1 or 2), MRN or medical-record labels, and dates of birth near names. A hit blocks the upload until the user confirms the content is redacted, and the confirmation is audited. Data processing records and a retention policy are kept per tenant, and tenant data can be exported or deleted.
 - **NCA ECC alignment** (design-level): least privilege, centralized logging, backups, vulnerability scanning in CI (`pnpm audit`, CodeQL), and a secrets policy (no secrets in the repo, `.env.example` only).
 - **Security headers:** strict CSP, HSTS, `frame-ancestors 'none'`, and SameSite=Lax cookies plus CSRF protection on mutations.
+
+**As built in M16:**
+
+- **Audit log viewer** (`/audit`, `governance/service.ts`): the organization's log, newest first, 50 per page, filtered through the URL by action, record type, person and Riyadh day, with an integrity check of the chain on top. The log and the export are kept per tenant, not per facility, so both need their permission in **every** facility of the organization: a quality manager of one clinic in a group cannot read the other clinics' history. Entries made by the platform team show as "Platform team" and job entries as "System".
+- **Chain verification:** `pnpm audit:verify` checks the platform chain and every tenant's chain through the system connection and exits 1 if any is broken.
+- **Data export** (`data.export`, owner of every facility): a POST from Settings returns one ZIP with a JSON file per tenant-owned table (`governance/domain/export.ts`; a test fails when a table with `tenant_id` is missing from the list), `people.json` (id, name, email, locale), every document file and a bilingual README. Passwords, sessions, TOTP secrets and invitation token hashes are left out. It is built in memory, which suits small and medium facilities; a very large tenant would need a background job. Limited to 3 an hour and audited as `export` on `tenant`.
+- **Security headers** (`lib/security-headers.ts`, applied in `next.config.ts` to every path): CSP with `default-src 'self'`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`; `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: same-origin`, a restrictive `Permissions-Policy`, `Cross-Origin-Opener-Policy: same-origin`, and HSTS (2 years) plus `upgrade-insecure-requests` when `APP_URL` is https. `X-Powered-By` is off. **Deviation:** scripts allow `'unsafe-inline'` instead of a per-request nonce, because nonces force every page to render dynamically and so are incompatible with Partial Prerendering (Cache Components). Everything else is limited to the app's own origin, so an injected script cannot load code or send data elsewhere.
+- **Rate limits:** Better Auth limits sign-in (10/min), sign-up (5/min) and TOTP and backup-code checks (10 and 5/min) per address, in memory, in production builds; the reverse proxy must overwrite `X-Forwarded-For`. The app's own limits (`lib/rate-limit.ts`) are per person and kept in Postgres (`rate_limit_bucket`, reachable only through the `SECURITY DEFINER` function `app_rate_limit_hit`), so all instances share them: uploads 30 per 10 minutes, download links 120 per 10 minutes, mock survey reports 10 an hour, data exports 3 an hour, invitations 30 an hour, service requests 10 an hour. A refusal shows "try again later" (or HTTP 429 on the download route). `RATE_LIMITS=off` turns the app's limits off for local experiments.
+- **Session timeout:** unchanged rules (30 minutes idle, 12 hours absolute). The page now warns 2 minutes before the idle limit, offers "Stay signed in", and signs out at the limit, so a screen left open in a clinic stops showing compliance data.
 
 ## 7. i18n, RTL and dates
 

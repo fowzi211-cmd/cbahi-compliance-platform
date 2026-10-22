@@ -40,6 +40,7 @@ const matrix: Record<Action, [Cell, Cell, Cell, Cell, Cell, Cell]> = {
   "capa.closeOwn": ["ownItem", "ownItem", "ownItem", "ownItem", "no", "no"],
   "dashboard.view": ["yes", "yes", "ownDept", "ownDept", "yes", "yes"],
   "audit.view": ["yes", "yes", "no", "no", "no", "no"],
+  "data.export": ["yes", "no", "no", "no", "no", "no"],
 };
 
 const ME = "00000000-0000-7000-8000-000000000001";

@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import { withoutTenant, withSystem, withTenant, type TenantContext, type Tx } from "@/lib/db";
 import { DomainError, ForbiddenError } from "@/lib/errors";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import { recordAudit, recordPlatformAudit } from "@/modules/audit/service";
 import {
   createOrganizationInput,
@@ -537,6 +538,7 @@ export async function inviteMember(ctx: AccessContext, input: InviteInput, now =
   if (!canAssignRole(ctx.actor, data.facilityId, data.role)) {
     throw new ForbiddenError(`membership.assign.${data.role}`);
   }
+  await consumeRateLimit("invitation", ctx.userId);
 
   const token = randomBytes(32).toString("base64url");
   const { invitation, facility, inviter } = await withTenant(ctx, async (tx) => {

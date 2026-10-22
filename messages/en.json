@@ -20,14 +20,21 @@
     "closeMenu": "Close menu",
     "people": "People & access",
     "notifications": "Notifications",
-    "requests": "Help requests"
+    "requests": "Help requests",
+    "auditLog": "Audit log"
   },
   "shell": {
     "switchLocale": "العربية",
     "switchLocaleLabel": "Switch to Arabic",
     "today": "Today",
     "signOut": "Sign out",
-    "facility": "Facility"
+    "facility": "Facility",
+    "idle": {
+      "title": "Still there?",
+      "body": "For your security you will be signed out in {minutes, plural, one {# minute} other {# minutes}} without activity.",
+      "stay": "Stay signed in",
+      "signOut": "Sign out now"
+    }
   },
   "dashboard": {
     "title": "Readiness dashboard",
@@ -227,7 +234,8 @@
     "errors": {
       "alreadyMember": "You already belong to a facility. Ask its owner to invite you to others.",
       "invalid": "Check the fields and try again.",
-      "forbidden": "You are not allowed to do this."
+      "forbidden": "You are not allowed to do this.",
+      "rateLimited": "Too many requests in a short time. Try again in a little while."
     }
   },
   "invite": {
@@ -246,7 +254,8 @@
       "accepted": "This invitation has already been used.",
       "wrongEmail": "This invitation is for a different email address.",
       "invalid": "This invitation link is not valid.",
-      "forbidden": "You are not allowed to do this."
+      "forbidden": "You are not allowed to do this.",
+      "rateLimited": "Too many requests in a short time. Try again in a little while."
     }
   },
   "people": {
@@ -274,6 +283,7 @@
     },
     "errors": {
       "forbidden": "You cannot give this role.",
+      "rateLimited": "Too many requests in a short time. Try again in a little while.",
       "invalid": "Check the email and the role.",
       "unknownDepartment": "Choose a department of this facility.",
       "generic": "Something went wrong. Try again."
@@ -498,6 +508,7 @@
       "errors": {
         "invalid": "Something in the form is not valid.",
         "forbidden": "You are not allowed to do this.",
+        "rateLimited": "Too many requests in a short time. Try again in a little while.",
         "notFound": "This edition no longer exists.",
         "notDraft": "Only a draft edition can do this.",
         "notActive": "Only a live edition can be retired.",
@@ -679,6 +690,7 @@
     "errors": {
       "invalid": "Check the fields and try again.",
       "forbidden": "You are not allowed to do this.",
+      "rateLimited": "Too many requests in a short time. Try again in a little while.",
       "noFrameworks": "Choose at least one framework.",
       "unknownFramework": "One of the chosen frameworks is no longer available. Refresh the page and choose again.",
       "duplicateFramework": "You cannot choose two editions of the same framework.",
@@ -705,6 +717,13 @@
       "noConsultants": "No consultant has access.",
       "consultant": "{name}, since {date}",
       "consultantsHint": "Consultants are assigned by the platform team and see this facility's data while the assignment lasts. Ask the platform team to end an assignment at any time."
+    },
+    "export": {
+      "title": "Export your data",
+      "body": "Download everything your organization has stored in Mustamir as one ZIP file: a JSON file per table, the people in the organization and every document file. Passwords and sign-in secrets are not included. The export is recorded in the audit log.",
+      "button": "Download the export (ZIP)",
+      "forbidden": "Only the owner of every facility in the organization can export its data.",
+      "rateLimited": "You have exported several times in the last hour. Try again later."
     }
   },
   "assessments": {
@@ -794,6 +813,7 @@
     "errors": {
       "invalid": "Check the details you entered.",
       "forbidden": "You are not allowed to do this.",
+      "rateLimited": "Too many requests in a short time. Try again in a little while.",
       "notFound": "Assessment not found.",
       "assessmentSubmitted": "This assessment was submitted and locked, so it cannot be changed.",
       "unknownFramework": "This framework is not chosen for your facility.",
@@ -900,6 +920,7 @@
     "errors": {
       "invalid": "Check the details you entered.",
       "forbidden": "You are not allowed to do this.",
+      "rateLimited": "Too many requests in a short time. Try again in a little while.",
       "notFound": "Document not found.",
       "titleRequired": "Give the document a title in Arabic or English.",
       "emptyFile": "The file is empty.",
@@ -1013,6 +1034,7 @@
     "errors": {
       "invalid": "Check the highlighted fields and try again.",
       "forbidden": "You do not have permission to do that.",
+      "rateLimited": "Too many requests in a short time. Try again in a little while.",
       "notFound": "This finding or action no longer exists.",
       "findingVerified": "This finding is verified. Its actions can no longer change.",
       "unknownOwner": "Choose a member of this facility as the owner.",
@@ -1083,7 +1105,8 @@
     },
     "errors": {
       "invalid": "Check the form and try again.",
-      "forbidden": "You do not have permission to do that."
+      "forbidden": "You do not have permission to do that.",
+      "rateLimited": "Too many requests in a short time. Try again in a little while."
     }
   },
   "tracers": {
@@ -1173,6 +1196,7 @@
     "errors": {
       "invalid": "Check the details you entered.",
       "forbidden": "You are not allowed to do this.",
+      "rateLimited": "Too many requests in a short time. Try again in a little while.",
       "notFound": "Tracer not found.",
       "nameRequired": "Give the template a name in Arabic or English.",
       "unknownFramework": "This framework is not in force for your facility.",
@@ -1245,6 +1269,7 @@
       "unknownFramework": "Choose one of the facility's frameworks.",
       "nothingToScore": "This framework has no applicable elements to score.",
       "forbidden": "You do not have permission to do this.",
+      "rateLimited": "Too many requests in a short time. Try again in a little while.",
       "invalid": "Check what you entered."
     },
     "report": {
@@ -1322,6 +1347,89 @@
         "level": "Level"
       },
       "footer": "{facility} · Mock survey report"
+    }
+  },
+  "audit": {
+    "title": "Audit log",
+    "intro": "Every change to compliance data in your organization, newest first: who did it, when, and what changed. The log cannot be edited or deleted, and each entry is chained to the one before it.",
+    "forbidden": "Only the owner or a quality manager with access to every facility in the organization can read the audit log.",
+    "filters": {
+      "title": "Filter",
+      "action": "Action",
+      "entity": "Record type",
+      "actor": "Who",
+      "from": "From",
+      "to": "To",
+      "any": "All",
+      "apply": "Apply",
+      "clear": "Clear filters"
+    },
+    "chain": {
+      "title": "Integrity check",
+      "ok": "{count, plural, =0 {No events yet.} one {# event checked: the chain is intact.} other {# events checked: the chain is intact.}}",
+      "broken": "The chain is broken at event #{seq}. Contact the platform team."
+    },
+    "empty": "No events match these filters.",
+    "entry": {
+      "system": "System",
+      "platform": "Platform team",
+      "record": "Record",
+      "details": "Details",
+      "before": "Before",
+      "after": "After",
+      "position": "#{seq}"
+    },
+    "older": "Older events",
+    "newest": "Back to the newest",
+    "actions": {
+      "create": "Created",
+      "update": "Updated",
+      "archive": "Archived",
+      "delete": "Deleted",
+      "approve": "Approved",
+      "export": "Exported",
+      "login": "Signed in",
+      "lock": "Locked",
+      "revoke": "Revoked",
+      "accept": "Accepted",
+      "activate": "Activated",
+      "retire": "Retired",
+      "complete": "Completed",
+      "submit": "Submitted",
+      "reject": "Rejected",
+      "link": "Linked",
+      "unlink": "Unlinked"
+    },
+    "entities": {
+      "assessment": "Assessment",
+      "element_score": "Element score",
+      "score_evidence": "Score evidence",
+      "finding": "Finding",
+      "capa_item": "Corrective action",
+      "capa_evidence": "Corrective action evidence",
+      "document": "Document",
+      "document_version": "Document version",
+      "document_element": "Document link to element",
+      "phi_override": "Patient-data warning overridden",
+      "committee": "Committee",
+      "committee_element": "Committee element",
+      "meeting": "Meeting",
+      "tracer_template": "Tracer",
+      "tracer_run": "Tracer run",
+      "facility": "Facility",
+      "facility_frameworks": "Facility frameworks",
+      "element_applicability": "Element applicability",
+      "department": "Department",
+      "membership": "Role",
+      "invitation": "Invitation",
+      "onboarding": "Onboarding",
+      "survey_cycle": "Survey cycle",
+      "subscription": "Subscription",
+      "service_request": "Help request",
+      "consultant_assignment": "Consultant assignment",
+      "tenant": "Organization",
+      "user": "Account",
+      "app_user": "Account"
     }
   },
   "committees": {
@@ -1405,6 +1513,7 @@
     "errors": {
       "invalid": "Check the details you entered.",
       "forbidden": "You are not allowed to do this.",
+      "rateLimited": "Too many requests in a short time. Try again in a little while.",
       "notFound": "Committee or meeting not found.",
       "nameRequired": "Give the committee a name in Arabic or English.",
       "unknownChair": "That person is not a member of this facility.",
@@ -1466,6 +1575,7 @@
     "errors": {
       "invalid": "Check the form and try again.",
       "forbidden": "You do not have permission to do this.",
+      "rateLimited": "Too many requests in a short time. Try again in a little while.",
       "notFound": "This item no longer exists.",
       "endsBeforeStart": "The end date must not be before the start date.",
       "notConsultant": "This account is not a platform consultant.",

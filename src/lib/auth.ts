@@ -60,10 +60,17 @@ function createAuth() {
       expiresIn: sessionPolicy.idleSeconds,
       updateAge: sessionPolicy.refreshSeconds,
     },
+    // Per client address, in this process's memory (one app instance). Better Auth applies
+    // them in production builds only. The address comes from X-Forwarded-For, so the reverse
+    // proxy in front of the app must overwrite that header, not append to it.
     rateLimit: {
       customRules: {
         [SIGN_IN]: { window: 60, max: 10 },
         "/sign-up/email": { window: 60, max: 5 },
+        // On top of the per-account lockout (10 wrong codes): one address guessing codes
+        // for many accounts is slowed down too.
+        "/two-factor/verify-totp": { window: 60, max: 10 },
+        "/two-factor/verify-backup-code": { window: 60, max: 5 },
       },
     },
     plugins: [

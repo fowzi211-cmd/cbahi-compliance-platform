@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import JSZip from "jszip";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { disconnectDb, withoutTenant, withTenant } from "@/lib/db";
 import { ForbiddenError } from "@/lib/errors";
@@ -25,6 +26,7 @@ import {
   uploadVersion,
 } from "@/modules/documents/service";
 import { makePdf } from "@/modules/documents/test-files";
+import { exportTenantData, getAuditLog } from "@/modules/governance/service";
 import {
   addCapaEvidence,
   countOverdueCapa,
@@ -654,6 +656,31 @@ describe("service layer with a fooled permission check", () => {
     const events = await listAuditEvents(a.ctx);
     expect(events.length).toBeGreaterThan(0);
     expect(events.every((event) => event.tenantId === a.tenant.id)).toBe(true);
+  });
+});
+
+describe("organization oversight with a fooled permission check", () => {
+  it("shows only the caller's own audit log", async () => {
+    const log = await getAuditLog(aForged, {});
+    expect(log.entries.length).toBeGreaterThan(0);
+    expect(log.entries.every((event) => event.tenantId === a.tenant.id)).toBe(true);
+    expect(log.facets.actors.map((actor) => actor.id)).not.toContain(b.ctx.userId);
+  });
+
+  it("exports only the caller's own rows, people and files", async () => {
+    const { bytes } = await exportTenantData(aForged);
+    const zip = await JSZip.loadAsync(bytes);
+    const text = (
+      await Promise.all(
+        Object.values(zip.files)
+          .filter((file) => !file.dir && file.name.endsWith(".json"))
+          .map((file) => file.async("string")),
+      )
+    ).join("\n");
+    expect(text).toContain(a.tenant.id);
+    expect(text).not.toContain(b.tenant.id);
+    expect(text).not.toContain(b.facility.id);
+    expect(text).not.toContain(b.ctx.userId);
   });
 });
 

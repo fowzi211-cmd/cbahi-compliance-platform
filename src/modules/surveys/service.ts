@@ -3,6 +3,7 @@ import { withTenant, type TenantContext, type Tx } from "@/lib/db";
 import { toRiyadhDay } from "@/lib/dates";
 import { DomainError, ForbiddenError } from "@/lib/errors";
 import { pdfFontCss, renderPdfs } from "@/lib/pdf";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import {
   getAssessmentSheet,
   listAssessments,
@@ -352,6 +353,7 @@ export async function exportMockSurveyReport(
   if (sheet.assessment.status !== "submitted") throw new DomainError<MockSurveyError>("notLocked");
   if (!canExport(ctx, sheet)) throw new ForbiddenError("mockSurvey.run");
   if (view.reports.length > 0) throw new DomainError<MockSurveyError>("alreadyExported");
+  await consumeRateLimit("reportExport", ctx.userId);
   const facility = await getFacility(ctx, sheet.assessment.facilityId);
   if (!facility) throw new DomainError<MockSurveyError>("notMockSurvey");
 

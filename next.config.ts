@@ -1,8 +1,17 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+import { securityHeaders } from "./src/lib/security-headers";
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  poweredByHeader: false,
+  async headers() {
+    const headers = securityHeaders({
+      https: (process.env.APP_URL ?? "").startsWith("https://"),
+      dev: process.env.NODE_ENV === "development",
+    });
+    return [{ source: "/:path*", headers }];
+  },
   // Native module: load it from node_modules at runtime instead of bundling it. The PDF
   // reader is kept out of the bundle too, as it loads its worker from its own package.
   // playwright-core launches Chromium to print reports and must not be bundled either.
