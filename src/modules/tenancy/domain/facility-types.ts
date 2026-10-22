@@ -8,6 +8,7 @@ export const facilityTypes = [
   "dental",
   "laboratory",
   "home_care",
+  "seasonal_hospital",
   "other",
 ] as const;
 export type FacilityType = (typeof facilityTypes)[number];

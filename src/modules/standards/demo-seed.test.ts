@@ -15,6 +15,7 @@ const catalogues = {
     "dental",
     "laboratory",
     "home_care",
+    "seasonal_hospital",
     "other",
   ]),
   departmentTypes: new Set(

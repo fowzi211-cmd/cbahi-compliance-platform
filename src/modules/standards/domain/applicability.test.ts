@@ -15,6 +15,7 @@ describe("suggestedPrograms", () => {
     ["dental", ["dental", "ambulatory"]],
     ["laboratory", ["lab"]],
     ["home_care", ["home_health"]],
+    ["seasonal_hospital", ["seasonal_hospital"]],
     ["other", []],
     ["unknown", []],
   ])("%s → %j", (type, expected) => {

@@ -94,7 +94,7 @@ erDiagram
     string name_ar
     string name_en
     string edition
-    string program "ambulatory|primary|lab|blood_bank|dental|home_health|hospital"
+    string program "CBAHI programme code (section 9)"
     enum status "draft|active|retired"
     jsonb rollup_config
     string license_note
@@ -498,6 +498,8 @@ The policy lives in one place, `tenancy/domain/policy.ts`, as `can(ctx, action, 
 ## 9. Standards import
 
 `standards/import` accepts CSV, XLSX or JSON in our documented schema (`docs/IMPORT_FORMAT.md`, written in milestone M4). The flow is upload, validate (Zod, with row-level errors), preview a diff against the current edition, and commit as a **new framework edition** in `draft` status, which an admin then activates. A framework cannot be activated without a `license_note` (also a DB CHECK), and a partial unique index allows one live edition per code; activating a draft retires the previous live edition in the same transaction. Retired editions stay readable for past assessments. Valid uploads are staged in `framework_import` with their report, so the admin commits exactly what was previewed; files with errors are never stored. Only the platform admin imports (`/{locale}/platform/standards`, MFA required); the flag is granted from the command line with `pnpm platform:admin <email>` and audited. Library writes go through the system role and are written to the platform audit chain. The repo seeds only `DEMO-*` placeholder content (`pnpm db:seed`).
+
+- _Programmes (2026-10-22)._ `program` follows the list of national-standards programmes on CBAHI's portal: hospitals, primary care, laboratories and blood banks (kept as `lab` and `blood_bank`), ambulatory centres and polyclinics, dental, home care, acute coronary syndrome services (`acs`) and seasonal hospitals. The six programmes CBAHI lists as in preparation (mental health, diabetes, stroke, rehabilitation, oncology, dialysis) are accepted already, so an edition can be imported when it is published. Codes and labels are ours; the list is only programme names, never standards text. Seasonal hospitals got their own facility type (`seasonal_hospital`, suggested programme `seasonal_hospital`). Service programmes such as `acs` are not suggested from any facility type: they are surveyed inside a hospital, so the owner adds them next to the hospital programme. Scoping a service framework to one department, and the seasonal active period (Phase 2 `SeasonalCycle`), are not built yet.
 
 ## 10. Testing strategy
 

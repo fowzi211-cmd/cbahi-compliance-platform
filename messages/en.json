@@ -229,6 +229,7 @@
       "dental": "Dental center",
       "laboratory": "Laboratory",
       "home_care": "Home care",
+      "seasonal_hospital": "Seasonal hospital",
       "other": "Other"
     },
     "errors": {
@@ -352,7 +353,15 @@
       "blood_bank": "Blood bank",
       "dental": "Dental",
       "home_health": "Home healthcare",
-      "hospital": "Hospital"
+      "hospital": "Hospital",
+      "seasonal_hospital": "Seasonal hospitals",
+      "acs": "Acute coronary syndrome services",
+      "mental_health": "Mental health hospitals",
+      "diabetes": "Diabetes centers and units",
+      "stroke": "Stroke centers",
+      "rehabilitation": "Medical rehabilitation centers",
+      "oncology": "Oncology centers",
+      "dialysis": "Dialysis centers"
     },
     "status": {
       "draft": "Draft",

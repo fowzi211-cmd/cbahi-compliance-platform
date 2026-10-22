@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { disconnectDb, withSystem } from "@/lib/db";
+import { facilityTypes } from "@/modules/tenancy/service";
 import { DomainError, ForbiddenError } from "@/lib/errors";
 import {
   activateEdition,
@@ -48,6 +49,26 @@ beforeAll(async () => {
 });
 
 afterAll(disconnectDb);
+
+describe("programmes and facility types", () => {
+  // The facility-type list in code and the catalogue the migrations seed must not drift:
+  // Facility.type has a foreign key to the catalogue, and onboarding offers the code list.
+  it("the facility_type catalogue matches the code list, in order", async () => {
+    const types = await withSystem((tx) => tx.facilityType.findMany({ orderBy: { sort: "asc" } }));
+    expect(types.map((t) => t.code)).toEqual([...facilityTypes]);
+  });
+
+  it.each(["seasonal_hospital", "acs", "dialysis"])(
+    "imports an edition for %s",
+    async (program) => {
+      const { frameworkId } = await importEdition(
+        demoEditionJson(uniqueFrameworkCode(), "1", { program }),
+      );
+      const edition = await getEdition(admin, frameworkId);
+      expect(edition?.program).toBe(program);
+    },
+  );
+});
 
 describe("import preview", () => {
   it("stores a valid file with its report and audits it", async () => {

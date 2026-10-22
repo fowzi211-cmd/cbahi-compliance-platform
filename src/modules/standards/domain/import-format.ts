@@ -9,6 +9,11 @@ export const formatVersion = "mustamir.framework/v1";
 export const importFormats = ["csv", "xlsx", "json"] as const;
 export type ImportFormat = (typeof importFormats)[number];
 
+// The CBAHI national-standards programmes (codes and labels are ours). The first group are
+// the programmes CBAHI currently surveys against; the second are still being written by
+// CBAHI, listed so an edition can be imported the day it is published. Service programmes
+// (acs, stroke, diabetes, dialysis...) are surveyed inside a facility of another type, so a
+// facility adds them next to its main programme instead of getting them from its type.
 export const programs = [
   "ambulatory",
   "primary",
@@ -17,6 +22,15 @@ export const programs = [
   "dental",
   "home_health",
   "hospital",
+  "seasonal_hospital",
+  "acs",
+  // In preparation by CBAHI.
+  "mental_health",
+  "diabetes",
+  "stroke",
+  "rehabilitation",
+  "oncology",
+  "dialysis",
 ] as const;
 export type Program = (typeof programs)[number];
 
