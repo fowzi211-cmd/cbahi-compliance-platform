@@ -26,6 +26,8 @@ const base: ReportInput = {
   elements: [element("DEMO-A.1.1"), element("DEMO-A.1.2")],
   findings: [],
   readyScore: 0.8,
+  minStandardScore: null,
+  standardsBelowMinimum: 0,
   esrBlocksReadiness: true,
 };
 
@@ -35,6 +37,12 @@ describe("reportSummary verdict", () => {
     ["at risk below the threshold", { score: 0.79 }, "at_risk", ["scoreBelowThreshold"]],
     ["ready exactly at the threshold", { score: 0.8 }, "ready", []],
     ["at risk with nothing to score", { score: null }, "at_risk", ["nothingToScore"]],
+    [
+      "at risk when a standard is below the per-standard minimum",
+      { minStandardScore: 0.5, standardsBelowMinimum: 1 },
+      "at_risk",
+      ["standardBelowMinimum"],
+    ],
     [
       "not ready when an ESR element is not fully met, whatever the score",
       {

@@ -151,7 +151,7 @@ ${metaRows.map(([label, value]) => `<tr><th scope="row">${escapeHtml(label)}</th
 </div>
 ${
   summary.reasons.length > 0
-    ? `<ul>${summary.reasons.map((r) => `<li>${escapeHtml(t(`reasons.${r}`, { threshold: `\u2066${formatPercent(summary.readyScore)}\u2069` }))}</li>`).join("")}</ul>`
+    ? `<ul>${summary.reasons.map((r) => `<li>${escapeHtml(t(`reasons.${r}`, { threshold: `\u2066${formatPercent(summary.readyScore)}\u2069`, minimum: `\u2066${formatPercent(summary.minStandardScore ?? 0)}\u2069` }))}</li>`).join("")}</ul>`
     : `<p>${escapeHtml(t("reasons.none"))}</p>`
 }
 ${

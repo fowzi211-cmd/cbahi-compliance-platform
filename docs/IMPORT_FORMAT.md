@@ -129,7 +129,7 @@ Yes/no cells accept `yes/no`, `true/false`, `1/0`, `y/n`, `نعم/لا`. Numbers
 digits and the Arabic decimal separator. Lists are separated by `|`, `,`, `;` or `،`.
 
 **Facility types:** `hospital`, `polyclinic`, `primary_care`, `dental`, `laboratory`,
-`home_care`, `other`.
+`home_care`, `seasonal_hospital`, `other`.
 
 **Department types:** `administration`, `quality`, `reception`, `outpatient`, `emergency`,
 `nursing`, `pharmacy`, `laboratory`, `radiology`, `dental`, `infection_control`,
@@ -144,14 +144,17 @@ Both catalogues are tables (`facility_type`, `department_type`) and grow through
   "standard": { "method": "weighted_average", "met_threshold": 1.0, "pm_threshold": 0.5 },
   "chapter": { "method": "weighted_average" },
   "facility": { "method": "weighted_average" },
-  "esr": { "allowed_levels": ["MET", "NM"], "any_not_met_blocks_readiness": true }
+  "esr": { "allowed_levels": ["MET", "NM"], "any_not_met_blocks_readiness": true },
+  "readiness": { "ready_score": 0.8, "min_standard_score": null }
 }
 ```
 
 Every part is optional. Methods: `weighted_average` (Σ weight·score / Σ weight),
 `all_must_meet` (fully met only when every child is), and `threshold` (the weighted share of fully
 met children: at or above `met_threshold` counts as met, at or above `pm_threshold` as partially
-met). How the scoring engine applies them is in ARCHITECTURE §4, "As built in M6".
+met). `readiness.ready_score` (0 to 1, default 0.8) is the edition's pass mark, and
+`readiness.min_standard_score` (0 to 1, or `null` for none) the score every applicable standard
+must reach for the facility to count as ready. How the scoring engine applies them is in ARCHITECTURE §4, "As built in M6".
 
 ## Limits
 

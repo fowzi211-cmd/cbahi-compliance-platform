@@ -145,6 +145,15 @@ export const rollupConfigSchema = z
       })
       .strict()
       .default({ allowed_levels: ["MET", "NM"], any_not_met_blocks_readiness: true }),
+    // Each programme sets its own pass mark. Some also fail a facility when any single
+    // standard scores below a minimum, however good the total: `min_standard_score`.
+    readiness: z
+      .object({
+        ready_score: z.number().min(0).max(1).default(0.8),
+        min_standard_score: z.number().min(0).max(1).nullable().default(null),
+      })
+      .strict()
+      .default({ ready_score: 0.8, min_standard_score: null }),
   })
   .strict();
 export type RollupConfig = z.infer<typeof rollupConfigSchema>;

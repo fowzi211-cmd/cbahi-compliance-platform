@@ -43,7 +43,7 @@ import {
   type ElementStatusRecord,
 } from "./domain/element-status";
 import { defaultScoreValidityDays } from "./domain/expiry";
-import { defaultReadinessSettings } from "./domain/readiness";
+import { countStandardsBelowMinimum, readinessSettingsFrom } from "./domain/readiness";
 import { computeRollup, rollupSettingsFrom } from "./domain/rollup";
 import { findLevel, normalizedValue } from "./domain/scale";
 import * as repo from "./repo";
@@ -52,8 +52,6 @@ export { evidenceKinds, evidenceLimits } from "./domain/assessment";
 export type { AssessmentKind, AssessmentStatus, EvidenceKind } from "./domain/assessment";
 export type { ScoreSource } from "./domain/expiry";
 export type { ReadinessReason, ReadinessStatus } from "./domain/readiness";
-/** The score at which a facility counts as ready, drawn on the trend chart. */
-export const readyScore = defaultReadinessSettings.readyScore;
 
 export type AssessmentError =
   | "notFound"
@@ -369,6 +367,7 @@ export async function getAssessmentSheet(ctx: AccessContext, assessmentId: strin
     content.scale,
     rollupSettingsFrom(content.rollupConfig),
   );
+  const readiness = readinessSettingsFrom(content.rollupConfig);
   const findings =
     assessment.status === "submitted"
       ? await listFindings(ctx, assessment.facilityId, { assessmentId: assessment.id })
@@ -380,6 +379,12 @@ export async function getAssessmentSheet(ctx: AccessContext, assessmentId: strin
     scale: content.scale,
     esrAllowedLevels: content.rollupConfig.esr.allowed_levels,
     esrBlocksReadiness: content.rollupConfig.esr.any_not_met_blocks_readiness,
+    readyScore: readiness.readyScore,
+    minStandardScore: readiness.minStandardScore,
+    standardsBelowMinimum: countStandardsBelowMinimum(
+      rollup.standards.values(),
+      readiness.minStandardScore,
+    ),
     canScore: assessment.status === "in_progress" && canScore(ctx, assessment),
     progress: progress(scope, scoredIds),
     score: rollup.facility,
@@ -858,7 +863,7 @@ export async function evaluateCompliance(
       scale: content.scale,
       rollup: rollupSettingsFrom(content.rollupConfig),
       esr: { anyNotMetBlocksReadiness: content.rollupConfig.esr.any_not_met_blocks_readiness },
-      readiness: defaultReadinessSettings,
+      readiness: readinessSettingsFrom(content.rollupConfig),
       statuses: own,
       overdueCapa: capa.overdue,
       departments,
@@ -866,6 +871,8 @@ export async function evaluateCompliance(
     };
     results.push({
       framework: content.framework,
+      // The edition's pass mark, drawn on the trend chart.
+      readyScore: common.readiness.readyScore,
       chapters: content.chapters.map((c) => ({
         id: c.id,
         code: c.code,

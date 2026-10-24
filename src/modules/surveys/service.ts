@@ -7,7 +7,6 @@ import { consumeRateLimit } from "@/lib/rate-limit";
 import {
   getAssessmentSheet,
   listAssessments,
-  readyScore,
   startMockSurveyAssessment,
   type AssessmentSheet,
   type ScoreSource,
@@ -301,7 +300,9 @@ function reportPages(
       levelCode: f.levelCode,
       statement: f.statement,
     })),
-    readyScore,
+    readyScore: sheet.readyScore,
+    minStandardScore: sheet.minStandardScore,
+    standardsBelowMinimum: sheet.standardsBelowMinimum,
     esrBlocksReadiness: sheet.esrBlocksReadiness,
   });
   const meta = {

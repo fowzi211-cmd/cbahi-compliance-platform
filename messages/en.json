@@ -64,6 +64,7 @@
         "esrNotMet": "At least one ESR element is not met.",
         "esrUnverified": "At least one ESR element has no current score.",
         "scoreBelowThreshold": "The overall score is below the readiness threshold.",
+        "standardBelowMinimum": "At least one standard scores below the minimum this programme allows.",
         "nothingToScore": "Nothing has been scored yet.",
         "overdueCapa": "Too many corrective actions are overdue."
       }
@@ -1321,6 +1322,7 @@
       "reasons": {
         "esrNotMet": "At least one essential safety requirement (ESR) element is not fully met.",
         "scoreBelowThreshold": "The overall score is below the readiness threshold ({threshold}).",
+        "standardBelowMinimum": "At least one standard scores below the per-standard minimum ({minimum}).",
         "nothingToScore": "Nothing in this survey counts towards a score.",
         "none": "Nothing recorded in this survey stands in the way of readiness."
       },

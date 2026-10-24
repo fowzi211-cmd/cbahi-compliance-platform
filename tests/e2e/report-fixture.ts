@@ -134,5 +134,7 @@ export const fixtureSummary = reportSummary({
     },
   ],
   readyScore: 0.8,
+  minStandardScore: null,
+  standardsBelowMinimum: 0,
   esrBlocksReadiness: true,
 });

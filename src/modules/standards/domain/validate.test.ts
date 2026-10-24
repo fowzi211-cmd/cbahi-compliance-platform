@@ -112,6 +112,19 @@ describe("validateWorkbook: a valid file", () => {
     ]);
   });
 
+  it("defaults the pass mark to 80% with no per-standard minimum", () => {
+    expect(defaultRollupConfig.readiness).toEqual({ ready_score: 0.8, min_standard_score: null });
+    const { document } = validateJson(
+      withFramework({
+        rollup_config: { readiness: { ready_score: 0.75, min_standard_score: 0.5 } },
+      }),
+    );
+    expect(document?.framework.rollupConfig.readiness).toEqual({
+      ready_score: 0.75,
+      min_standard_score: 0.5,
+    });
+  });
+
   it("accepts a custom scale and roll-up configuration", () => {
     const json = withFramework({
       rollup_config: { standard: { method: "threshold", met_threshold: 0.8, pm_threshold: 0.4 } },
@@ -244,6 +257,11 @@ describe("validateWorkbook: row errors", () => {
       "framework without a name",
       withFramework({ name_ar: null, name_en: null }),
       ["titleMissing", "framework", 1, "name_ar"],
+    ],
+    [
+      "pass mark above 100%",
+      withFramework({ rollup_config: { readiness: { ready_score: 1.2 } } }),
+      ["invalidRollupConfig", "framework", 1, "rollup_config"],
     ],
     [
       "invalid roll-up method",

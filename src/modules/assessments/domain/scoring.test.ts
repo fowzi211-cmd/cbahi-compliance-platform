@@ -40,13 +40,18 @@ function submit(levels: Record<string, string>, current: ElementStatusRecord[] =
   });
 }
 
-const evaluate = (statuses: ElementStatusRecord[], now: Date, overdueCapa = 0) =>
+const evaluate = (
+  statuses: ElementStatusRecord[],
+  now: Date,
+  overdueCapa = 0,
+  readiness = defaultReadinessSettings,
+) =>
   evaluateFacility({
     content,
     scale: testScale,
     rollup,
     esr: { anyNotMetBlocksReadiness: true },
-    readiness: defaultReadinessSettings,
+    readiness,
     statuses,
     source: "internal",
     overdueCapa,
@@ -86,6 +91,21 @@ describe("evaluateFacility", () => {
     expect(evaluate(submit(allMet), scoredAt, 6)).toMatchObject({
       status: "at_risk",
       reasons: ["overdueCapa"],
+    });
+  });
+
+  it("applies the edition's pass mark and per-standard minimum", () => {
+    // Six of ten elements met: 60% overall, and the only standard scores 60% too.
+    const levels = { ...allMet, e5: "NM", e6: "NM", e7: "NM", e8: "NM" };
+    const settings = (readyScore: number, minStandardScore: number | null) => ({
+      ...defaultReadinessSettings,
+      readyScore,
+      minStandardScore,
+    });
+    expect(evaluate(submit(levels), scoredAt, 0, settings(0.6, 0.5)).status).toBe("ready");
+    expect(evaluate(submit(levels), scoredAt, 0, settings(0.6, 0.75))).toMatchObject({
+      status: "at_risk",
+      reasons: ["standardBelowMinimum"],
     });
   });
 
