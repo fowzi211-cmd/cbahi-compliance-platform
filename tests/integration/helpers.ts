@@ -70,6 +70,7 @@ export function demoEditionJson(
     // Department types per element number; by default element 2 belongs to nursing.
     departmentTypes?: Record<string, string>;
     program?: string;
+    rollupConfig?: object;
   } = {},
 ) {
   const elements = options.elements ?? ["1", "2", "3"];
@@ -82,6 +83,7 @@ export function demoEditionJson(
       name_ar: "إطار تجريبي",
       name_en: "Demo framework",
       program: options.program ?? "ambulatory",
+      ...(options.rollupConfig ? { rollup_config: options.rollupConfig } : {}),
     },
     chapters: [{ code: "DEMO-X", title_ar: "فصل تجريبي", title_en: "Demo chapter" }],
     standards: [

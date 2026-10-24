@@ -1,10 +1,6 @@
 import { withTenant } from "@/lib/db";
 import { toRiyadhDay } from "@/lib/dates";
-import {
-  evaluateCompliance,
-  listCurrentCitations,
-  readyScore,
-} from "@/modules/assessments/service";
+import { evaluateCompliance, listCurrentCitations } from "@/modules/assessments/service";
 import { getDocumentAlerts } from "@/modules/documents/service";
 import { getSurveyCycle } from "@/modules/surveys/service";
 import { allowed, getFacility, type AccessContext } from "@/modules/tenancy/service";
@@ -14,7 +10,6 @@ import * as repo from "./repo";
 
 export type { CountdownState } from "./domain/countdown";
 export type { TrendPoint } from "./domain/trend";
-export { readyScore };
 
 /** How many unverified elements the overview names; the rest are counted. */
 export const unverifiedListLimit = 10;
@@ -45,11 +40,13 @@ export async function getDashboard(ctx: AccessContext, facilityId: string, now =
     const departments = r.internal.departments
       .filter((d) => visibleDepartments.has(d.departmentId) && d.counted > 0)
       .map((d) => ({ ...d, department: departmentById.get(d.departmentId)! }));
-    if (!wholeFacility) return { framework: r.framework, departments, overview: null };
+    if (!wholeFacility)
+      return { framework: r.framework, readyScore: r.readyScore, departments, overview: null };
     // ESR first: a facility that misses one is not ready whatever else it scores.
     const unverified = [...r.internal.unverified].sort((a, b) => Number(b.isEsr) - Number(a.isEsr));
     return {
       framework: r.framework,
+      readyScore: r.readyScore,
       departments,
       overview: {
         status: r.internal.status,

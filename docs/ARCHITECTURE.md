@@ -142,7 +142,8 @@ erDiagram
   "standard": { "method": "weighted_average", "met_threshold": 1.0, "pm_threshold": 0.5 },
   "chapter": { "method": "weighted_average" },
   "facility": { "method": "weighted_average" },
-  "esr": { "allowed_levels": ["MET", "NM"], "any_not_met_blocks_readiness": true }
+  "esr": { "allowed_levels": ["MET", "NM"], "any_not_met_blocks_readiness": true },
+  "readiness": { "ready_score": 0.8, "min_standard_score": null }
 }
 ```
 
@@ -333,7 +334,7 @@ erDiagram
 1. **Element score.** A level with `requires_evidence = true` (MET and PM by default) cannot be saved without at least one `ScoreEvidence`. NA at the element level needs a comment. NA does not count in the denominator.
 2. **Roll-up.** Element → standard → chapter → facility uses `rollup_config`, with weights from `Standard.weight` and `Element.weight`.
 3. **ESR.** ESR elements accept only MET or NM. **Any ESR element that is NM, or not verified (expired or never scored), makes the facility "Not ready", whatever the overall %.**
-4. **Readiness status.** `not_ready` (ESR rule) → `at_risk` (score < 80% or more than 5 overdue CAPA items) → `ready`. Thresholds are per tenant settings with these defaults.
+4. **Readiness status.** `not_ready` (ESR rule) → `at_risk` (score below the edition's pass mark, default 80%; any standard below the edition's per-standard minimum, if it sets one; or more than 5 overdue CAPA items) → `ready`.
 5. **Expiry.** An internal score expires `score_validity_days` (default 90) after `verified_at`. A consultant score does not expire, but it is shown with its date.
 6. **Finding generation.** A level with `generates_finding` (NM and PM) creates a Finding automatically, with severity `esr` when the element is ESR.
 7. **CAPA lifecycle.** A CAPA item cannot be set to `done` without closure evidence. When it is overdue, a job escalates it: level 1 notifies the owner, level 2 the quality manager (after 7 days), level 3 the facility owner (after 14 days). A finding closes when all its CAPA items are done. It is _verified_ only by a later score of MET on the element.
@@ -350,6 +351,7 @@ erDiagram
 - _Roll-up (rule 2)._ An applicable element with no current score (never scored, or expired) counts as **0**, not as missing: compliance nobody has verified recently cannot be claimed, and a surveyor scores every applicable element. Coverage is reported beside the score (`counted`, `scored`). `weighted_average` is Σw·s/Σw; `all_must_meet` is 1 only when every child is fully met, else 0; `threshold` maps the weighted share of fully met children to 1 at or above `met_threshold`, 0.5 at or above `pm_threshold`, else 0 (the standard's thresholds are used at every level). Children with no score or weight 0 take no part. At facility level a chapter weighs the sum of its standards' weights, so a small chapter does not outvote a large one.
 - _ESR (rule 3)._ "Not met" means an ESR element scored below full compliance; "not verified" means never scored or expired. Either makes the facility `not_ready`. If an edition sets `any_not_met_blocks_readiness = false`, they make it `at_risk` instead.
 - _Readiness (rule 4)._ `ready` needs a score of at least `readyScore` (default 0.8, inclusive) and at most `maxOverdueCapa` (default 5) overdue CAPA items. With nothing to score it is `at_risk`. The reasons are returned with the status.
+- _Pass mark and per-standard minimum (2026-10-24)._ `readyScore` and `minStandardScore` come from the edition's `rollup_config.readiness` (`ready_score`, default 0.8; `min_standard_score`, default none), because accreditation programmes set their own decision rules: one may pass a facility at 75% overall only if no single standard scores below 50%. A standard below the minimum (inclusive at the minimum; a standard with nothing that counts is left out, an unverified one scores 0) adds the `standardBelowMinimum` reason and makes the facility `at_risk`. The dashboard draws each edition's own pass mark on its trend, and the mock-survey report applies both to what the surveyor scored. "Core" standards whose sub-standards cannot be partially met are modelled by marking those elements ESR. `maxOverdueCapa` stays a platform default, and the struggle signal (rule 9) keeps its own 0.8. Old editions have no `readiness` block and get the defaults, so nothing changes for them.
 - _Expiry (rule 5)._ Runs from when the score was recorded (server time), not from when the assessment was submitted: an observation is as old as the day it was made. Expired from the expiry instant on. The validity is a positive whole number of days.
 - _ElementStatus._ One row per element **per source**, so a consultant score never replaces an internal one (decision 7). A submitted score replaces the status unless the status comes from a newer score, so submitting an old draft late cannot roll an element back. `evaluateFacility` chains current levels → roll-up → readiness for one series at a given `now`.
 

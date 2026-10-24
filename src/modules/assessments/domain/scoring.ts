@@ -1,6 +1,7 @@
 import { currentLevels, type ElementStatusRecord } from "./element-status";
 import type { ScoreSource } from "./expiry";
 import {
+  countStandardsBelowMinimum,
   readinessStatus,
   type ReadinessReason,
   type ReadinessSettings,
@@ -48,7 +49,14 @@ export function evaluateFacility(input: {
     input.rollup,
   );
   const verdict = readinessStatus(
-    { ...rollup.facility, overdueCapa: input.overdueCapa },
+    {
+      ...rollup.facility,
+      overdueCapa: input.overdueCapa,
+      standardsBelowMinimum: countStandardsBelowMinimum(
+        rollup.standards.values(),
+        input.readiness.minStandardScore,
+      ),
+    },
     input.readiness,
     input.esr,
   );

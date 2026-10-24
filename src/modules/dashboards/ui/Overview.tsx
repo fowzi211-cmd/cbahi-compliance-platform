@@ -8,7 +8,7 @@ import type { Locale } from "@/i18n/routing";
 import { formatDate } from "@/lib/dates";
 import { formatPercent } from "@/lib/numbers";
 import { localized } from "@/modules/standards/service";
-import { readyScore, type Dashboard, type FrameworkTrend } from "../service";
+import type { Dashboard, FrameworkTrend } from "../service";
 import { TrendChart } from "./TrendChart";
 
 type FrameworkView = Dashboard["frameworks"][number];
@@ -152,7 +152,7 @@ export async function FrameworkOverview({
             <ReadinessCard locale={locale} overview={o} />
             <EsrPanel locale={locale} overview={o} />
           </div>
-          <TrendPanel locale={locale} trend={trend} />
+          <TrendPanel locale={locale} trend={trend} readyScore={view.readyScore} />
           <div className="grid gap-4 lg:grid-cols-2">
             <Panel title={t("chapters.title")} testId="chapter-scores">
               <ScoreBars
@@ -293,7 +293,15 @@ async function UnverifiedPanel({ locale, overview: o }: { locale: Locale; overvi
   );
 }
 
-async function TrendPanel({ locale, trend }: { locale: Locale; trend: FrameworkTrend | null }) {
+async function TrendPanel({
+  locale,
+  trend,
+  readyScore,
+}: {
+  locale: Locale;
+  trend: FrameworkTrend | null;
+  readyScore: number;
+}) {
   const t = await getTranslations({ locale, namespace: "dashboard.trend" });
   const points = (trend?.points ?? []).map((p) => ({
     ...p,

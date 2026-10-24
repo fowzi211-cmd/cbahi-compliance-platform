@@ -102,6 +102,41 @@ beforeAll(async () => {
 
 afterAll(disconnectDb);
 
+describe("an edition's own decision rules", () => {
+  it("uses the edition's pass mark and fails a standard below its minimum", async () => {
+    const other = await makeTenant("Decision rules");
+    const { frameworkId: id } = await publishDemoEdition({
+      elements: ["1", "2"],
+      esr: [],
+      rollupConfig: { readiness: { ready_score: 0.5, min_standard_score: 0.75 } },
+    });
+    await setFacilityFrameworks(other.ctx, other.facility.id, [id]);
+    const assessmentId = await startAssessment(other.ctx, other.facility.id, { frameworkId: id });
+    const sheet = (await getAssessmentSheet(other.ctx, assessmentId))!;
+    const [first, second] = sheet.chapters[0]!.standards[0]!.elements;
+    for (const [element, levelCode] of [
+      [first!, "MET"],
+      [second!, "NM"],
+    ] as const) {
+      await saveElementScore(other.ctx, assessmentId, element.id, {
+        levelCode,
+        comment: "Checked.",
+        evidence: { kind: "observation", note: "Seen on site." },
+      });
+    }
+    await submitAssessment(other.ctx, assessmentId);
+
+    // 50% overall meets this edition's pass mark, but the standard is below 75%.
+    const view = (await getDashboard(other.ctx, other.facility.id))!.frameworks[0]!;
+    expect(view.readyScore).toBe(0.5);
+    expect(view.overview).toMatchObject({
+      status: "at_risk",
+      reasons: ["standardBelowMinimum"],
+      facility: { score: 0.5 },
+    });
+  });
+});
+
 describe("readiness overview", () => {
   it("starts with every element unverified and the ESR element blocking readiness", async () => {
     const dashboard = (await getDashboard(viewer, facilityId))!;

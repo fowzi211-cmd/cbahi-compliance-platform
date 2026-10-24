@@ -8,7 +8,8 @@ export const findingSeverities = ["esr", "high", "medium", "low"] as const;
 export type ReportSeverity = (typeof findingSeverities)[number];
 
 export type ReportVerdict = "not_ready" | "at_risk" | "ready";
-export type ReportVerdictReason = "esrNotMet" | "scoreBelowThreshold" | "nothingToScore";
+export type ReportVerdictReason =
+  "esrNotMet" | "scoreBelowThreshold" | "standardBelowMinimum" | "nothingToScore";
 
 export type ReportLevel = { code: string; labelAr: string | null; labelEn: string | null };
 
@@ -51,6 +52,10 @@ export type ReportInput = {
   elements: readonly ReportElement[];
   findings: readonly ReportFinding[];
   readyScore: number;
+  // The edition's per-standard minimum (null when it has none), and how many standards the
+  // surveyor scored below it.
+  minStandardScore: number | null;
+  standardsBelowMinimum: number;
   // From the edition's roll-up settings: whether one ESR element not met fails readiness.
   esrBlocksReadiness: boolean;
 };
@@ -70,6 +75,7 @@ export function reportSummary(input: ReportInput) {
   if (esrNotMet.length > 0) reasons.push("esrNotMet");
   if (input.score === null) reasons.push("nothingToScore");
   else if (input.score < input.readyScore - 1e-9) reasons.push("scoreBelowThreshold");
+  if (input.standardsBelowMinimum > 0) reasons.push("standardBelowMinimum");
   const verdict: ReportVerdict =
     esrNotMet.length > 0 && input.esrBlocksReadiness
       ? "not_ready"
@@ -95,6 +101,7 @@ export function reportSummary(input: ReportInput) {
     verdict,
     reasons,
     readyScore: input.readyScore,
+    minStandardScore: input.minStandardScore,
     score: input.score,
     elementsScored: input.elements.length,
     elementsCounted: counted.length,
